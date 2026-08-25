@@ -41,12 +41,12 @@ Aufrufe außerhalb von save.ts, Erfolge nie im UI-Code.
 
 ## 3. Meilensteine
 
-M1 - bis 2026-09-01: Kern rechnet
+M1 - ERLEDIGT am 2026-08-25: Kern rechnet
   core/ mit balance, numbers, world, production, land, market. Headless-Runner
   reproduziert die Zeittabelle aus BALANCING.md (6.9 h aktiv) als Test.
   ABNAHME: `npm run sim` gibt die 14 Stufenzeiten aus, Abweichung < 10%.
 
-M2 - bis 2026-09-08: Spiel wird zum Spiel
+M2 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-08): Spiel wird zum Spiel
   Lager, Statthalter-Politiken, manuelles An/Aus von Gebieten, Events,
   Save/Load mit Version, Offline-Progress (Cap 8 h).
   ABNAHME: Headless-Durchlauf mit Speichern, Beenden, Laden, Weiterspielen.

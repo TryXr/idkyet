@@ -19,11 +19,13 @@ Eine Währung, kein Prestige, klares Ende nach rund fünf bis sieben Stunden.
 
 ## Stand
 
-Meilenstein M1 erreicht: Simulationskern läuft headless und deterministisch.
+Meilenstein M2 erreicht: Simulationskern läuft headless und deterministisch,
+mit Speichern, Laden, Offline-Fortschritt und Statthalter-Upgrades.
 
 ```
 npm install
 npm run sim        # Regressionslauf gegen die Design-Ziele
+npm test           # Speichern, Laden, Offline-Fortschritt
 npm run sweep      # Balance-Sweeps
 npm run typecheck
 ```

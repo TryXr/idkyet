@@ -69,6 +69,16 @@ export const BALANCE = {
    *  ueber, stockt die Produktion (kein Verlust, nur Stillstand). */
   storage: { bufferSeconds: 60, bufferPerLevel: 1.5, costBase: 200, costGrowth: 1.6 },
 
+  /** Statthalter-Stufen. Stufe 0 ist Handverkauf: am besten, aber man muss
+   *  dabei sein. S0 ist SCHLECHTER als Handverkauf - und trotzdem der
+   *  wichtigste Kauf im Spiel, weil er das Klicken beendet. */
+  pilots: [
+    { key: "s0", name: "Statthalter anstellen", cost: 400 },
+    { key: "s1", name: "Sperren meiden", cost: 15_000 },
+    { key: "s2", name: "Disziplin: Obergrenze & Preis-Vorrang", cost: 900_000 },
+    { key: "s3", name: "Marktbeobachtung", cost: 60_000_000 },
+  ],
+
   offlineCapSeconds: 8 * 3600,
   tickSeconds: 1,
 };

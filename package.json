@@ -6,12 +6,16 @@
   "scripts": {
     "sim": "tsx tools/run-sim.ts",
     "sweep": "tsx tools/sweep.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx tools/test-save.ts"
   },
   "dependencies": {
     "@types/node": "^26.3.0",
     "break_infinity.js": "^2.2.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
   }
 }
