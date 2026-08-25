@@ -7,7 +7,8 @@
     "sim": "tsx tools/run-sim.ts",
     "sweep": "tsx tools/sweep.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tools/test-save.ts"
+    "test": "tsx tools/test-save.ts",
+    "diagnose": "tsx tools/diagnose.ts"
   },
   "dependencies": {
     "@types/node": "^26.3.0",

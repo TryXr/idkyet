@@ -3,8 +3,9 @@
  * Begruendung und Herleitung jeder Zahl steht in BALANCING.md.
  *
  * Die zwei kritischen Verhaeltnisse (siehe PLAN.md, Risiken):
- *   outputTierMult / costTierMult  = 13.5 / 12   -> haelt die Kurve flach
- *   capMult        / outputTierMult = 12 / 13.5  -> verhindert Waende
+ *   outputTierMult / costTierMult  = 13.0 / 12   -> haelt die Kurve flach
+ *   capMult        / outputTierMult = 12 / 13.0  -> verhindert Waende
+ *   land.poolMult                  = 1.8        -> Land bindet wirklich
  * Wer hier dreht, muss den Regressionslauf (npm run sim) mitlaufen lassen.
  */
 export const BALANCE = {
@@ -50,14 +51,15 @@ export const BALANCE = {
     parcelArea: 100,       // m2 je Parzelle
     scarcityExp: 1.5,
     pool0: 12,             // Parzellen auf Stufe 0
-    poolMult: 14,
+    poolMult: 1.8,        // gemessen: darunter wuergt es das Spiel ab, darueber
+                          // ist Land bedeutungslos (siehe BALANCING.md)
   },
 
   /** Zoomstufen. */
   levels: {
     cap0: 0.6,             // profitabel verkaufbare Ware/s auf Stufe 0
     capMult: 12,
-    upgradeSeconds: 1100,  // Aufstiegskosten = ~18 min Umsatz der Stufe
+    upgradeSeconds: 1600,  // Aufstiegskosten = ~27 min Umsatz der Stufe
   },
 
   /** Effektiver Erloes je Ware bei optimaler Auslastung u*.
@@ -83,24 +85,35 @@ export const BALANCE = {
   tickSeconds: 1,
 };
 
-/** Namen und Flaechenbedarf der 15 Herstellorte. Flaeche 0 = braucht kein Land
- *  (Frachtschiff, Orbitalstation) - das Ventil, wenn die Erde voll ist. */
-export const SITES: ReadonlyArray<{ name: string; area: number }> = [
-  { name: 'Badezimmer',        area: 2 },
-  { name: 'Garage',            area: 8 },
-  { name: 'Wohnwagen',         area: 15 },
-  { name: 'Kellergeschoss',    area: 40 },
-  { name: 'Lagerhalle',        area: 250 },
-  { name: 'Gewerbepark',       area: 900 },
-  { name: 'Stillgelegte Fabrik', area: 4_500 },
-  { name: 'Farm / Gewächshaus', area: 30_000 },
-  { name: 'Frachtschiff',      area: 0 },
-  { name: 'Bergwerk',          area: 2_000 },
-  { name: 'Pharmawerk',        area: 60_000 },
-  { name: 'Raffinerie',        area: 400_000 },
-  { name: 'Orbitalstation',    area: 0 },
-  { name: 'Mondbasis',         area: 1_000_000 },
-  { name: 'Asteroiden-Cluster', area: 100_000_000 },
+/**
+ * Die 15 Herstellorte.
+ *
+ * `area` = Flaechenbedarf in m2. 0 heisst: braucht kein Land (Frachtschiff,
+ * Orbitalstation) - das Ventil, wenn die Erde voll ist.
+ *
+ * `costMult` = Aufschlag auf die Stufenkosten. Orte, die dem Flaechenzwang
+ * ausweichen, muessen SPUERBAR teurer sein. Ohne diesen Aufschlag ist
+ * Landknappheit folgenlos: gemessen aenderte sich die Spieldauer nicht einmal
+ * um eine Minute, wenn dem Spieler die halbe Welt fehlte - er wich einfach auf
+ * Schiffe aus. Erst der Aufschlag macht "Land kaufen oder ausweichen?" zu einer
+ * echten Entscheidung.
+ */
+export const SITES: ReadonlyArray<{ name: string; area: number; costMult: number }> = [
+  { name: 'Badezimmer',          area: 2,           costMult: 1 },
+  { name: 'Garage',              area: 8,           costMult: 1 },
+  { name: 'Wohnwagen',           area: 15,          costMult: 1 },
+  { name: 'Kellergeschoss',      area: 40,          costMult: 1.4 },  // dicht gebaut
+  { name: 'Lagerhalle',          area: 250,         costMult: 1 },
+  { name: 'Gewerbepark',         area: 900,         costMult: 1 },
+  { name: 'Stillgelegte Fabrik', area: 4_500,       costMult: 0.8 },  // billig pro Flaeche
+  { name: 'Farm / Gewächshaus',  area: 30_000,      costMult: 0.6 },  // Flaechenfresser
+  { name: 'Frachtschiff',        area: 0,           costMult: 9 },    // kein Land noetig
+  { name: 'Bergwerk',            area: 2_000,       costMult: 3 },    // kaum Oberflaeche
+  { name: 'Pharmawerk',          area: 60_000,      costMult: 1 },
+  { name: 'Raffinerie',          area: 400_000,     costMult: 0.8 },
+  { name: 'Orbitalstation',      area: 0,           costMult: 9 },    // kein Land noetig
+  { name: 'Mondbasis',           area: 1_000_000,   costMult: 1 },    // eigener Flaechenpool
+  { name: 'Asteroiden-Cluster',  area: 100_000_000, costMult: 0.7 },
 ];
 
 export const LEVELS: ReadonlyArray<string> = [

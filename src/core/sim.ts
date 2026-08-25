@@ -39,6 +39,8 @@ export class Sim {
   storage = 0;
   storageLevel = 0;
   pilotLevel = 0;
+  /** Geglaetteter Ertrag pro Sekunde, fuer Anzeige und Kaufprognosen. */
+  incomeRate = 0;
   nodes: MarketNode[];
   finished = false;
 
@@ -131,7 +133,22 @@ export class Sim {
     this.storage = Math.max(0, this.storage - sold);
     this.cash = this.cash.add(revenue);
     this.lifetime = this.lifetime.add(revenue);
+
+    // Geglaetteter Ertrag pro Sekunde. Grundlage fuer "Zeit bis zum naechsten
+    // Kauf" (Pflichtfeature laut CLAUDE.md) und fuer die Anzeige.
+    const perSecond = dt > 0 ? revenue / dt : 0;
+    const smoothing = Math.min(1, dt / 30);
+    this.incomeRate = this.incomeRate * (1 - smoothing) + perSecond * smoothing;
+
     this.time += dt;
+  }
+
+  /** Wie lange dauert es beim aktuellen Ertrag, bis der Betrag da ist? */
+  secondsUntil(cost: Num): number {
+    const missing = cost.sub(this.cash);
+    if (missing.lte(0)) return 0;
+    if (this.incomeRate <= 0) return Infinity;
+    return missing.div(this.incomeRate).toNumber();
   }
 
   /**
@@ -172,14 +189,73 @@ export class Sim {
   }
 
   buyParcel(): boolean {
+    return this.buyParcels(1) === 1;
+  }
+
+  /**
+   * Mehrere Parzellen auf einmal. Ohne Sammelkauf haengt der Spieler minutenlang
+   * am Landkauf fest: die Diagnose zeigte bis zu 53% einer Zoomstufe blockiert,
+   * weil pro Tick nur eine Parzelle ging. Max-Buy steht ohnehin als
+   * Pflichtfeature in CLAUDE.md.
+   */
+  buyParcels(count: number): number {
     const pool = this.parcelPool();
-    if (this.parcels >= pool) return false;
-    const cost = this.nextParcelCost();
-    if (this.cash.lt(cost)) return false;
-    this.cash = this.cash.sub(cost);
-    this.parcels++;
-    if (this.parcels >= pool) this.emit({ type: 'landFull', at: this.time });
-    return true;
+    let bought = 0;
+    while (bought < count && this.parcels < pool) {
+      const cost = parcelCost(this.parcels, pool);
+      if (this.cash.lt(cost)) break;
+      this.cash = this.cash.sub(cost);
+      this.parcels++;
+      bought++;
+    }
+    if (bought > 0 && this.parcels >= pool) this.emit({ type: 'landFull', at: this.time });
+    return bought;
+  }
+
+  /** So viel Land, wie Bargeld und Vorrat hergeben. */
+  buyMaxParcels(limit = 100_000): number {
+    return this.buyParcels(limit);
+  }
+
+  /** Genug Land fuer eine bestimmte Flaeche - der uebliche Fall beim Bauen. */
+  buyParcelsForArea(area: number): number {
+    const missing = area - this.freeArea();
+    if (missing <= 0) return 0;
+    return this.buyParcels(Math.ceil(missing / BALANCE.land.parcelArea));
+  }
+
+  /**
+   * Kosten fuer n weitere Einheiten einer Ortsart. Geometrische Reihe, deshalb
+   * geschlossen loesbar - kein Schleifenaufwand fuer Max-Buy.
+   */
+  siteBulkCost(tier: number, count: number): Num {
+    const owned = this.owned[tier] ?? 0;
+    const growth = BALANCE.production.costGrowth;
+    const factor = (Math.pow(growth, count) - 1) / (growth - 1);
+    return siteCost(tier, owned).mul(factor);
+  }
+
+  /** Wie viele Einheiten dieser Art sind bezahlbar und passen auf die Flaeche? */
+  affordableSites(tier: number): number {
+    if (tier < 0 || tier >= this.unlockedTiers()) return 0;
+    const area = siteArea(tier);
+    const byArea = area > 0 ? Math.floor(this.freeArea() / area) : Number.MAX_SAFE_INTEGER;
+    if (byArea <= 0) return 0;
+    // Groesste Anzahl, deren Sammelkosten das Bargeld nicht ueberschreiten.
+    let low = 0;
+    let high = Math.min(byArea, 10_000);
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      if (this.cash.gte(this.siteBulkCost(tier, mid))) low = mid; else high = mid - 1;
+    }
+    return low;
+  }
+
+  /** Max-Buy fuer Herstellorte. */
+  buySites(tier: number, count: number): number {
+    let bought = 0;
+    while (bought < count && this.buySite(tier)) bought++;
+    return bought;
   }
 
   storageCost(): Num {

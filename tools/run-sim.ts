@@ -12,29 +12,21 @@
 import { Sim } from '../src/core/sim.js';
 import { levelName, maxLevel } from '../src/core/world.js';
 import { fmt } from '../src/core/numbers.js';
-import { siteCount } from '../src/core/production.js';
 import type { PILOT_TRAITS } from '../src/core/policy.js';
+import { decide } from './autoplay.js';
 
-const TARGET = { minHours: 5, maxHours: 8, maxIdleHours: 8.5, maxLevelMinutes: 50 };
+const TARGET = { minHours: 5, maxHours: 8, maxIdleHours: 8.5, maxLevelMinutes: 45 };
 
-/** Kaufpolitik eines vernuenftigen Spielers. */
-function decide(sim: Sim): void {
-  if (sim.marketsSaturated()) { sim.levelUp(); return; }
-  if (sim.storage >= sim.storageCap() * 0.9 && sim.buyStorage()) return;
-  let best = -1, bestPayback = Infinity;
-  for (let tier = 0; tier < sim.unlockedTiers() && tier < siteCount(); tier++) {
-    if (!sim.canBuySite(tier)) continue;
-    const payback = sim.paybackSeconds(tier);
-    if (payback < bestPayback) { bestPayback = payback; best = tier; }
-  }
-  if (best >= 0) { sim.buySite(best); return; }
-  sim.buyParcel();
-}
-
-function play(pilot: keyof typeof PILOT_TRAITS, seed = 1) {
+/**
+ * `pilot: undefined` heisst: es gilt der Statthalter, den der Spieler sich
+ * bisher leisten konnte. Genau das ist der Abwesende. Wer anwesend ist,
+ * uebersteuert seinen Statthalter ohnehin - deshalb bekommt der aktive Spieler
+ * die Handbetriebs-Politik erzwungen.
+ */
+function play(pilot: keyof typeof PILOT_TRAITS | undefined, seed = 1) {
   const marks = new Map<number, number>();
   const sim = new Sim({ seed, pilot, onEvent: e => { if (e.type === 'levelUp') marks.set(e.level, e.at); } });
-  while (!sim.finished && sim.time < 40 * 3600) { sim.tick(); decide(sim); }
+  while (!sim.finished && sim.time < 40 * 3600) { sim.tick(); decide(sim, { buyPilots: true }); }
   let longest = 0, previous = 0;
   for (let level = 1; level <= maxLevel(); level++) {
     const at = marks.get(level);
@@ -43,16 +35,16 @@ function play(pilot: keyof typeof PILOT_TRAITS, seed = 1) {
   return { sim, marks, longestMinutes: longest / 60 };
 }
 
-const runs = [
-  ['aktiv (Mensch, 30 s)', 'human'],
-  ['idle S3 (Statthalter ausgebaut)', 's3'],
-  ['idle S0 (roher Autopilot)', 's0'],
-] as const;
+const runs: Array<[string, keyof typeof PILOT_TRAITS | undefined]> = [
+  ['aktiv (anwesend, Handbetrieb)', 'human'],
+  ['idle (gekaufter Statthalter)', undefined],
+  ['idle ohne jeden Ausbau (S0)', 's0'],
+];
 
 const results = new Map<string, ReturnType<typeof play>>();
 for (const [label, pilot] of runs) {
   const result = play(pilot);
-  results.set(pilot, result);
+  results.set(pilot ?? 'owned', result);
   console.log(`\n=== ${label} ===`);
   let previous = 0;
   for (let level = 1; level <= maxLevel(); level++) {
@@ -67,7 +59,8 @@ for (const [label, pilot] of runs) {
 }
 
 const active = results.get('human')!;
-const idle = results.get('s0')!;
+const idle = results.get('owned')!;
+const neverUpgraded = results.get('s0')!;
 const activeHours = active.sim.time / 3600;
 const idleHours = idle.sim.time / 3600;
 
@@ -78,6 +71,9 @@ const checks: Array<[string, boolean, string]> = [
     activeHours >= TARGET.minHours && activeHours <= TARGET.maxHours, `${activeHours.toFixed(2)} h`],
   [`Dauer idle <= ${TARGET.maxIdleHours} h`, idleHours <= TARGET.maxIdleHours, `${idleHours.toFixed(2)} h`],
   ['Aktiv schneller als idle', idleHours > activeHours, `Faktor ${(idleHours / activeHours).toFixed(2)}`],
+  ['Statthalter-Ausbau lohnt deutlich',
+    neverUpgraded.sim.time > idle.sim.time * 1.4,
+    `ohne Ausbau ${(neverUpgraded.sim.time / 3600).toFixed(2)} h statt ${idleHours.toFixed(2)} h`],
   [`Laengste Stufe <= ${TARGET.maxLevelMinutes} min`,
     active.longestMinutes <= TARGET.maxLevelMinutes, `${active.longestMinutes.toFixed(0)} min`],
 ];

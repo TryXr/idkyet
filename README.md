@@ -19,7 +19,7 @@ Eine Währung, kein Prestige, klares Ende nach rund fünf bis sieben Stunden.
 
 ## Stand
 
-Meilenstein M2 erreicht: Simulationskern läuft headless und deterministisch,
+Meilenstein M3 erreicht: Simulationskern läuft headless und deterministisch,
 mit Speichern, Laden, Offline-Fortschritt und Statthalter-Upgrades.
 
 ```

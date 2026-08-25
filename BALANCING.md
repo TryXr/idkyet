@@ -55,8 +55,8 @@ vor der naechsten lohnt Aufmerksamkeit.
 
 ## 3. Herstellorte
 
-    kosten(t, n) = 10 * 12^t * 1.115^n       // t = Stufe, n = bereits besessen
-    ausstoss(t)  = 0.10 * 13.0^t             // Ware/s
+    kosten(t, n) = 10 * 12^t * costMult(t) * 1.115^n   // n = bereits besessen
+    ausstoss(t)  = 0.10 * 13.0^t                       // Ware/s
 
 Meilensteine: x2 bei 25, 50, 100, 200 Stueck derselben Art.
 
@@ -65,16 +65,51 @@ notwendig: In der ersten Fassung war es umgekehrt, und die Stufenzeiten haben
 sich verdoppelt (21, 24, 30, 46, 77, 154, 293, 533 min) - genau die endlose
 Verlangsamung aus den Genre-Postmortems.
 
-Flaechen in m2: 2, 8, 15, 40, 250, 900, 4500, 30000, 0, 2000, 60000, 400000,
-0, 1e6, 1e8. Die Nullen sind Frachtschiff und Orbitalstation - sie brauchen
-keine Landflaeche und sind das Ventil, wenn die Erde voll ist.
+| # | Ort                  | Flaeche m2  | costMult | Rolle |
+|---|----------------------|------------:|---------:|-------|
+| 0 | Badezimmer           |           2 |      1   | Start |
+| 1 | Garage               |           8 |      1   | |
+| 2 | Wohnwagen            |          15 |      1   | |
+| 3 | Kellergeschoss       |          40 |      1.4 | dicht gebaut |
+| 4 | Lagerhalle           |         250 |      1   | |
+| 5 | Gewerbepark          |         900 |      1   | |
+| 6 | Stillgelegte Fabrik  |       4 500 |      0.8 | billig pro Flaeche |
+| 7 | Farm / Gewaechshaus  |      30 000 |      0.6 | Flaechenfresser |
+| 8 | Frachtschiff         |           0 |      9   | KEIN Land noetig |
+| 9 | Bergwerk             |       2 000 |      3   | kaum Oberflaeche |
+|10 | Pharmawerk           |      60 000 |      1   | |
+|11 | Raffinerie           |     400 000 |      0.8 | |
+|12 | Orbitalstation       |           0 |      9   | KEIN Land noetig |
+|13 | Mondbasis            |   1 000 000 |      1   | eigener Flaechenpool |
+|14 | Asteroiden-Cluster   | 100 000 000 |      0.7 | Endgame |
+
+Der costMult ist NICHT Kosmetik. Ohne Aufschlag auf die flaechenlosen Orte ist
+Landknappheit vollstaendig folgenlos: gemessen aenderte sich die Spieldauer
+nicht um eine Minute, wenn dem Spieler die halbe Welt fehlte - er wich einfach
+auf Schiffe aus. Erst der Aufschlag macht "Land kaufen oder ausweichen?" zu
+einer echten Entscheidung.
 
 ## 4. Land
 
     preis(k, pool) = 5 * (1 / (1 - k/pool))^1.5
+    pool(stufe)    = 12 * 1.8^stufe
 
-100 m2 pro Parzelle, Vorrat `pool = 12 * 14^stufe`. Endlich, also ist 100%
-erreichbar; die letzten Prozent sind teuer, aber nicht unendlich.
+100 m2 pro Parzelle. Der Vorratsfaktor 1.8 ist eng gemessen:
+
+| poolMult | Landbesitz am Ende | Wirkung |
+|---------:|-------------------:|---------|
+| 1.5      | 100%               | Spiel kommt NIE durch (>40 h) |
+| **1.8**  | **55-100%**        | **Land bindet, Rhythmus entsteht** |
+| 2.1      | 22.7%              | Land fast bedeutungslos |
+| 2.5+     | unter 6%           | Land voellig bedeutungslos |
+
+Bei 14 (erster Entwurf) besass der Spieler nach 254 978 gekauften Parzellen
+0.0% der Welt - die gesamte "die Erde wird voll"-Spannung war eine
+Behauptung ohne Deckung.
+
+Mit 1.8 gehoert dem Spieler ab Stufe 4 durchgehend 100% der jeweiligen Ebene,
+und genau dort tauchen Frachtschiff und Orbitalstation als beste Orte auf. Das
+Ausweichventil greift von selbst, ohne Skript.
 
 ## 5. Lager
 
@@ -83,60 +118,91 @@ Produktionspuffer definiert, dadurch skalenfrei - eine feste Stueckzahl waere
 im Endgame bedeutungslos. Laeuft das Lager ueber, STOCKT die Produktion.
 Kein Verlust, nur Stillstand.
 
-## 6. Marktkapazitaet je Zoomstufe
+## 6. Statthalter
+
+| Stufe | Name | Kosten | kann |
+|-------|------|-------:|------|
+| 0 | Handverkauf | - | alles, aber nur bei Anwesenheit |
+| 1 | Statthalter anstellen | 400 | verkauft ueberall gleich, flutet |
+| 2 | Sperren meiden | 15 000 | meidet heisse Maerkte |
+| 3 | Disziplin: Obergrenze & Preis-Vorrang | 900 000 | haelt u* ein, beliefert teuerste zuerst |
+| 4 | Marktbeobachtung | 60 000 000 | reagiert alle 90 s statt alle 300 s |
+
+Stufe 3 ist EIN Upgrade aus zwei Faehigkeiten. Getrennt gekauft waere die
+Obergrenze allein schlechter als gar nichts (47%), weil der Autopilot dann in
+den erstbesten statt in den besten Markt liefert - eine Falle fuer den Spieler.
+
+Ohne Statthalter passiert in der Abwesenheit NICHTS, denn dann verkauft
+niemand. Das macht Stufe 1 zum wichtigsten Kauf des Spiels, obwohl sie
+schlechter verkauft als Handarbeit.
+
+VERWORFEN: "Opportunismus" - bei Preisspitzen ueber u* hinaus liefern. Klang
+nach der fehlenden Menschen-Faehigkeit, machte den Menschen aber LANGSAMER
+(5.99 h statt 5.90 h). Der Preisverfall ist ueberlinear und haelt laenger an,
+als die Spitze einbringt. Das Feld steht als Konstante auf 0 im Code, damit
+niemand die Idee ein zweites Mal hat.
+
+## 7. Marktkapazitaet je Zoomstufe
 
     kapazitaet(L) = 0.6 * 12^L          // profitabel verkaufbare Ware/s
-    aufstiegskosten(L) = kapazitaet(L) * 12 * 1100   // ~18 min Umsatz
+    aufstiegskosten(L) = kapazitaet(L) * 12 * 1600   // ~27 min Umsatz
 
 Der Faktor 12 MUSS zum Ausstoss-Faktor der Herstellorte (13.0) passen. Mit 22
 statt 12 lief das Spiel bei Stufe 10 (Orbit) in eine Wand von 322 Minuten.
 Umgekehrt gemessen: sinkt der Ausstoss-Faktor auf 12.8, also zu nah an die 12,
-springt die laengste Stufe von 48 auf 55 min - die Wand kommt zurueck.
-Die beiden Zahlen duerfen nicht naeher als etwa 1.0 aneinander.
+springt die laengste Stufe von 48 auf 55 min. Abstand mindestens 1.0 halten.
 
-## 7. Ergebnis: Zeitplan (aus der echten Simulation, `npm run sim`)
+## 8. Ergebnis: Zeitplan (`npm run sim`, `tools/diagnose.ts`)
 
-| Stufe | erreicht bei | dauert |
-|-------|-------------:|-------:|
-| Block           | 0.30 h | 18 min |
-| Stadt           | 0.60 h | 18 min |
-| Ballungsraum    | 0.89 h | 18 min |
-| Region          | 1.18 h | 17 min |
-| Land            | 1.47 h | 17 min |
-| Nachbarlaender  | 1.87 h | 24 min |
-| Kontinent       | 2.30 h | 26 min |
-| Hemisphaere     | 2.91 h | 37 min |
-| Welt            | 3.19 h | 17 min |
-| Orbit           | 3.48 h | 17 min |
-| Mond & Mars     | 4.21 h | 44 min |
-| Aeusseres System| 5.01 h | 48 min |
-| Interstellar    | 5.31 h | 18 min |
+| Stufe | Dauer | Landbesitz | hoechster Ort |
+|-------|------:|-----------:|---------------|
+| Straßenecke     | 27 min |   8.3% | Garage |
+| Block           | 30 min |   4.8% | Wohnwagen |
+| Stadt           | 39 min |  13.2% | Wohnwagen |
+| Ballungsraum    | 26 min |   7.2% | Lagerhalle |
+| Region          | 31 min | 100.0% | Gewerbepark |
+| Land            | 24 min |  55.3% | Stillgelegte Fabrik |
+| Nachbarlaender  | 26 min | 100.0% | Farm / Gewaechshaus |
+| Kontinent       | 28 min | 100.0% | Frachtschiff |
+| Hemisphaere     | 24 min | 100.0% | Frachtschiff |
+| Welt            | 24 min | 100.0% | Pharmawerk |
+| Orbit           | 39 min | 100.0% | Bergwerk |
+| Mond & Mars     | 32 min | 100.0% | Orbitalstation |
+| Aeusseres System| 26 min | 100.0% | Orbitalstation |
 
 | Spielweise                        | Gesamtzeit | Faktor |
 |-----------------------------------|-----------:|-------:|
-| aktiv (Mensch, 30 s Reaktion)     | 5.31 h | 1.00 |
-| idle, Statthalter ausgebaut (S3)  | 5.35 h | 1.01 |
-| idle, roher Autopilot (S0)        | 6.86 h | 1.29 |
+| aktiv (anwesend, Handbetrieb)     | 6.29 h | 1.00 |
+| idle mit gekauftem Statthalter    | 6.79 h | 1.08 |
+| idle ohne jeden Ausbau            | 12.22 h | 1.94 |
 
-Der Rhythmus ist bewusst ungleichmaessig (18, 18, 18, 17, 17, 24, 26, 37, 17,
-17, 44, 48, 18) - keine gleichfoermige Verlangsamung, sondern Schuebe und
-ruhige Phasen.
+WICHTIG zum Messmodell: Wer anwesend ist, uebersteuert seinen Statthalter
+ohnehin - der Autopilot zaehlt nur bei Abwesenheit. Frueher wurde gegen "S3 ab
+der ersten Sekunde" gemessen, was nie vorkommt (S3 kostet 60 Mio) und den
+falschen Schluss ergab, aktives Spiel sei wertlos.
 
-WICHTIG - physische Aufnahmegrenze: ein Markt nimmt hoechstens das 3-fache
-seiner Nachfrage auf, der Rest bleibt im Lager liegen. Ohne diese Grenze konnte
-der Autopilot das gesamte Lager in einer Sekunde absetzen, und Fluten war
-folgenlos: der Faktor aktiv/idle lag dann bei 1.00 statt bei 1.29. Erst aus dem
-Zusammenspiel von ueberlinearem Preisverfall UND Aufnahmegrenze entsteht der
-Wert aufmerksamen Spielens.
+Der grosse Hebel ist nicht Starren auf den Bildschirm, sondern der
+STATTHALTER-AUSBAU: wer ihn ignoriert, braucht doppelt so lang.
 
-## 8. Offene Punkte
+## 9. Weitere gemessene Erkenntnisse
 
-- Die alten Sollzeiten (6.9 h) stammten aus einer Ueberschlagsrechnung, die
-  jede Ware zum vollen Preis abgesetzt hat. Das Knotenmodell ist genauer;
-  die Tabelle oben ist ab jetzt die Referenz.
-- Aeusseres System (48 min) ist die laengste Stufe. Innerhalb der Zielmarke,
-  aber der erste Kandidat, falls es sich zaeh anfuehlt.
-- S3 ist praktisch so gut wie ein Mensch (Faktor 1.01). Die Reaktionszeit
-  allein traegt zu wenig - falls aktives Spiel dauerhaft lohnen soll, muss der
-  oberste Statthalter schlechter sein als S3 heute ist.
+SAMMELKAUF IST PFLICHT, nicht Komfort. Mit einer Parzelle pro Tick hing der
+Spieler bis zu 53% einer Zoomstufe an der Flaeche fest (Kontinent 37 min, Orbit
+44 min, Mond & Mars 48 min). Mit Sammelkauf verschwanden die Ausreisser
+vollstaendig - allerdings wurde die Kurve dadurch erst monoton (16-19 min
+ueberall), bis die Landknappheit aus Abschnitt 4 die Rhythmik zurueckbrachte.
+
+PHYSISCHE AUFNAHMEGRENZE: ein Markt nimmt hoechstens das 3-fache seiner
+Nachfrage auf, der Rest bleibt im Lager. Ohne diese Grenze konnte der Autopilot
+das gesamte Lager in einer Sekunde absetzen und Fluten war folgenlos; der
+Faktor aktiv/idle lag dann bei exakt 1.00.
+
+## 10. Offene Punkte
+
+- Auf mehreren Stufen wird 99-100% der Zeit gespart und nur ein einziger,
+  sehr hochwertiger Ort gekauft. Das ist eine duenne Entscheidungsdichte -
+  wenige, grosse Kaeufe statt vieler kleiner. Kandidat fuer M5, wenn die
+  Bedienung steht und man es spueren kann.
+- Straßenecke dauert 27 min. Fuer die allererste Stufe zu lang; die ersten
+  60 Sekunden sind ohnehin noch nicht gebaut (M6).
 - Offline-Cap: 8 h, passt zur Spiellaenge.

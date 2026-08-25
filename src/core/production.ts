@@ -7,10 +7,12 @@ const P = BALANCE.production;
 export const siteCount = (): number => SITES.length;
 export const siteName = (tier: number): string => SITES[tier]?.name ?? `Ort ${tier}`;
 export const siteArea = (tier: number): number => SITES[tier]?.area ?? 0;
+export const siteCostMult = (tier: number): number => SITES[tier]?.costMult ?? 1;
 
 /** Kosten der naechsten Einheit dieser Art. */
 export const siteCost = (tier: number, owned: number): Num =>
-  D(P.costBase).mul(Math.pow(P.costTierMult, tier)).mul(Math.pow(P.costGrowth, owned));
+  D(P.costBase).mul(Math.pow(P.costTierMult, tier)).mul(siteCostMult(tier))
+    .mul(Math.pow(P.costGrowth, owned));
 
 /** Grundausstoss einer Einheit dieser Art in Ware/s. */
 export const siteOutput = (tier: number): Num =>

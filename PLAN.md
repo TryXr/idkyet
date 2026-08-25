@@ -51,7 +51,7 @@ M2 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-08): Spiel wird zum Spiel
   Save/Load mit Version, Offline-Progress (Cap 8 h).
   ABNAHME: Headless-Durchlauf mit Speichern, Beenden, Laden, Weiterspielen.
 
-M3 - bis 2026-09-15 (Zwischenziel aus CLAUDE.md): headless durchspielbar
+M3 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-15): headless durchspielbar
   Balance-Sweeps über die zwei kritischen Verhältnisse. Die Ausreißer
   Mond/Mars (67 min) und interstellar (167 min) geglättet.
   ABNAHME: aktiv/idle beide zwischen 5 und 8 h, keine Stufe über 45 min.
