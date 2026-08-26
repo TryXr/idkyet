@@ -11,7 +11,7 @@ import {
   milestoneMultiplier, nextMilestone, siteArea, siteCost, siteCount,
   siteOutput, totalOutput, usedArea,
 } from './production.js';
-import { ownedArea, parcelCost, parcelPool } from './land.js';
+import { ownedArea, parcelBulkCost, parcelCost, parcelPool, parcelsForCash } from './land.js';
 import { makePolicy, PILOT_TRAITS, type Policy } from './policy.js';
 import { EventBus, type EventListener, type GameEvent } from './events.js';
 import {
@@ -51,6 +51,7 @@ export class Sim {
   private policy!: Policy;
   private reactSeconds = 0;
   private cachedAlloc: number[] | null = null;
+  private storageStalled = false;
 
   constructor(opts: SimOptions = {}) {
     this.seed = opts.seed ?? 1;
@@ -116,7 +117,12 @@ export class Sim {
 
     const room = Math.max(0, this.storageCap() - this.storage);
     const wanted = this.output().toNumber() * dt;
-    if (wanted > 0 && room <= 0) this.emit({ type: 'storageFull', at: this.time });
+    // Gedrosselt heisst: es waere mehr moeglich, als ins Lager passt. Gemeldet
+    // wird nur die FLANKE - vorher hing die Meldung an "gar nichts geht mehr",
+    // und das trat praktisch nie ein, weil jede Sekunde ein wenig abfliesst.
+    const throttled = wanted > room + 1e-9;
+    if (throttled && !this.storageStalled) this.emit({ type: 'storageFull', at: this.time });
+    this.storageStalled = throttled;
     this.storage += Math.min(wanted, room); // volles Lager stoppt die Produktion
 
     const supplyRate = this.storage / dt;
@@ -256,6 +262,77 @@ export class Sim {
     let bought = 0;
     while (bought < count && this.buySite(tier)) bought++;
     return bought;
+  }
+
+  /** Parzellen, die fuer `count` Einheiten dieser Art noch fehlen. */
+  parcelsNeededFor(tier: number, count = 1): number {
+    const missing = siteArea(tier) * count - this.freeArea();
+    if (missing <= 0) return 0;
+    return Math.ceil(missing / BALANCE.land.parcelArea);
+  }
+
+  /** Was ein Kauf WIRKLICH kostet: die Orte plus das Land, das ihnen fehlt. */
+  siteTotalCost(tier: number, count: number): Num {
+    const parcels = this.parcelsNeededFor(tier, count);
+    const land = parcelBulkCost(this.parcels, this.parcelPool(), parcels);
+    return this.siteBulkCost(tier, count).add(land);
+  }
+
+  /**
+   * Bauen und fehlendes Land gleich mitkaufen.
+   *
+   * Ohne das klickt der Spieler zwischen zwei Listen hin und her und rechnet
+   * dabei Parzellen im Kopf aus - genau die Sorte Buchhaltung, die das
+   * Leitprinzip verbietet. Gekauft wird nur, wenn das Geld fuer BEIDES reicht;
+   * sonst stuende der Spieler mit Land und ohne Ort da.
+   */
+  buySiteWithLand(tier: number, count = 1): number {
+    if (tier < 0 || tier >= this.unlockedTiers() || count <= 0) return 0;
+    const parcels = this.parcelsNeededFor(tier, count);
+    if (parcels > 0) {
+      if (this.parcels + parcels > this.parcelPool()) return 0; // Land ist aus
+      if (this.cash.lt(this.siteTotalCost(tier, count))) return 0;
+      this.buyParcels(parcels);
+    }
+    return this.buySites(tier, count);
+  }
+
+  /**
+   * Max-Buy inklusive Land. `affordableSites` rechnet nur mit der Flaeche, die
+   * schon da ist - was frueh im Spiel fast immer 0 ergibt und den Knopf nutzlos
+   * macht. Hier wird das noetige Land eingepreist.
+   */
+  affordableSitesWithLand(tier: number): number {
+    if (tier < 0 || tier >= this.unlockedTiers()) return 0;
+    const area = siteArea(tier);
+    if (area > 0) {
+      const free = this.freeArea() + (this.parcelPool() - this.parcels) * BALANCE.land.parcelArea;
+      if (free < area) return 0;
+    }
+    let low = 0;
+    let high = 10_000;
+    while (low < high) {
+      const mid = Math.ceil((low + high) / 2);
+      const parcels = this.parcelsNeededFor(tier, mid);
+      const fits = this.parcels + parcels <= this.parcelPool();
+      if (fits && this.cash.gte(this.siteTotalCost(tier, mid))) low = mid; else high = mid - 1;
+    }
+    return low;
+  }
+
+  /** Max-Buy fuer Herstellorte, Land eingerechnet. */
+  buyMaxSites(tier: number): number {
+    return this.buySiteWithLand(tier, this.affordableSitesWithLand(tier));
+  }
+
+  /** Kosten fuer die naechsten `count` Parzellen - fuer Anzeige und Max-Buy. */
+  parcelBulkCost(count: number): Num {
+    return parcelBulkCost(this.parcels, this.parcelPool(), count);
+  }
+
+  /** Wie viele Parzellen das Bargeld hergibt. */
+  affordableParcels(): number {
+    return parcelsForCash(this.cash, this.parcels, this.parcelPool());
   }
 
   storageCost(): Num {

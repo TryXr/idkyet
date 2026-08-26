@@ -1,22 +1,28 @@
 /**
- * Schale um die Simulation: fixer Timestep, Karte, ein paar Knoepfe.
+ * Schale um die Simulation: fixer Timestep, Karte, Bedienfeld, Stimmen.
  *
- * Die eigentliche Bedienung kommt in M5. Was hier steht, reicht, um sich durch
- * alle 14 Stufen zu spielen und den Zoom zu pruefen - inklusive Tempo-Regler,
- * denn sonst dauert ein Testdurchlauf sechs Stunden.
+ * Hier steht bewusst nur die Verdrahtung. Was angezeigt wird, entscheidet
+ * model.ts (headless pruefbar), wie es aussieht panel.ts, was gesagt wird
+ * content/voices.ts. Der Tempo-Regler bleibt drin - ohne ihn dauert jeder
+ * Testdurchlauf sechs Stunden.
  */
 import { BALANCE } from '../core/balance.js';
-import { fmt, fmtTime } from '../core/numbers.js';
 import { Sim } from '../core/sim.js';
-import { levelName, maxLevel } from '../core/world.js';
-import { siteName } from '../core/production.js';
-import { ownedFraction, parcelPool } from '../core/land.js';
+import { maxLevel } from '../core/world.js';
 import { BrowserStorage } from '../platform/browser-storage.js';
 import { MapView } from '../render/map.js';
+import { VoiceDirector } from '../content/voices.js';
+import { HINTS } from '../content/texts.js';
+import { applyAction, buildViewModel } from './model.js';
+import { Panel } from './panel.js';
+import { VoicesView } from './voices-view.js';
 import type { MarketNode } from '../core/market.js';
 
 const storage = new BrowserStorage();
 const sim = Sim.load(storage) ?? new Sim({ seed: 1 });
+
+const director = new VoiceDirector(sim.level);
+sim.events.on(event => director.handle(event));
 
 const map = new MapView({
   onToggleNode: id => {
@@ -29,6 +35,13 @@ const mapHost = document.getElementById('map')!;
 await map.mount(mapHost, 1);
 map.setLevel(sim.level, sim.nodes);
 
+const panel = new Panel(document.getElementById('panel')!, action => {
+  applyAction(sim, action);
+  refreshPanel();
+});
+const voices = new VoicesView(document.getElementById('voices')!);
+document.getElementById('mapHint')!.textContent = HINTS.map;
+
 /** Waehrend des Stufenwechsels wird noch die ALTE Ebene gezeichnet. */
 let renderNodes: readonly MarketNode[] = sim.nodes;
 let lastLevel = sim.level;
@@ -36,10 +49,19 @@ let lastLevel = sim.level;
 let speed = 1;
 let accumulator = 0;
 let lastFrame = performance.now();
+let sincePanel = 0;
 
 /** Ab dieser Luecke war der Tab weg (Hintergrund, Standby) - dann wird
  *  nicht Bild fuer Bild nachgeholt, sondern grob nachgerechnet. */
 const CATCHUP_THRESHOLD = 2;
+/** Das Bedienfeld muss nicht mit 60 Hz rechnen; viermal je Sekunde liest
+ *  sich ruhiger und spart die Sammelpreis-Rechnerei. */
+const PANEL_INTERVAL = 0.25;
+
+function refreshPanel(): void {
+  panel.update(buildViewModel(sim));
+  sincePanel = 0;
+}
 
 function step(now: number): void {
   const gap = (now - lastFrame) / 1000;
@@ -76,121 +98,12 @@ function step(now: number): void {
   }
 
   map.render(renderNodes, realDt);
-  updatePanel();
+  voices.update(director, realDt);
+
+  sincePanel += realDt;
+  if (sincePanel >= PANEL_INTERVAL) refreshPanel();
+
   requestAnimationFrame(step);
-}
-
-// --- Bedienfeld ----------------------------------------------------------
-
-const statsEl = document.getElementById('stats')!;
-const actionsEl = document.getElementById('actions')!;
-const levelNameEl = document.getElementById('levelName')!;
-const levelIndexEl = document.getElementById('levelIndex')!;
-
-interface Action {
-  label: string;
-  cost?: string;
-  enabled: boolean;
-  run: () => void;
-}
-
-function bestTier(): number {
-  let best = -1;
-  let bestPayback = Infinity;
-  for (let tier = 0; tier < sim.unlockedTiers(); tier++) {
-    if (!sim.canBuySite(tier)) continue;
-    const payback = sim.paybackSeconds(tier);
-    if (payback < bestPayback) { bestPayback = payback; best = tier; }
-  }
-  return best;
-}
-
-function updatePanel(): void {
-  levelNameEl.textContent = levelName(sim.level);
-  levelIndexEl.textContent = `Stufe ${sim.level} von ${maxLevel()}`;
-
-  const land = ownedFraction(sim.parcels, parcelPool(sim.level));
-  const rows: Array<[string, string]> = [
-    ['Bargeld', fmt(sim.cash)],
-    ['pro Sekunde', fmt(sim.incomeRate)],
-    ['Produktion', `${fmt(sim.output())} /s`],
-    ['Absatz möglich', `${fmt(sim.capacity())} /s`],
-    ['Lager', `${fmt(sim.storage)} / ${fmt(sim.storageCap())}`],
-    ['Land', `${(land * 100).toFixed(1)} %`],
-    ['Statthalter', sim.pilotLevel === 0 ? 'Handbetrieb' : `Stufe ${sim.pilotLevel}`],
-    ['Spielzeit', fmtTime(sim.time)],
-  ];
-  statsEl.innerHTML = rows
-    .map(([key, value]) => `<dt>${key}</dt><dd>${value}</dd>`)
-    .join('');
-
-  const tier = bestTier();
-  const pilot = sim.nextPilot();
-  const actions: Action[] = [];
-
-  if (tier >= 0) {
-    actions.push({
-      label: `${siteName(tier)} bauen`,
-      cost: fmt(sim.siteBulkCost(tier, 1)),
-      enabled: true,
-      run: () => sim.buySite(tier),
-    });
-    const many = Math.min(sim.affordableSites(tier), 25);
-    if (many > 1) {
-      actions.push({
-        label: `${many}× ${siteName(tier)}`,
-        cost: fmt(sim.siteBulkCost(tier, many)),
-        enabled: true,
-        run: () => sim.buySites(tier, many),
-      });
-    }
-  }
-  actions.push({
-    label: 'Land kaufen',
-    cost: fmt(sim.nextParcelCost()),
-    enabled: sim.cash.gte(sim.nextParcelCost()) && sim.parcels < parcelPool(sim.level),
-    run: () => sim.buyParcels(25),
-  });
-  actions.push({
-    label: 'Lager vergrößern',
-    cost: fmt(sim.storageCost()),
-    enabled: sim.cash.gte(sim.storageCost()),
-    run: () => sim.buyStorage(),
-  });
-  if (pilot) {
-    actions.push({
-      label: pilot.name,
-      cost: fmt(pilot.cost),
-      enabled: sim.cash.gte(pilot.cost),
-      run: () => sim.buyPilot(),
-    });
-  }
-  actions.push({
-    label: sim.level >= maxLevel() ? 'Geschafft' : `Weiter nach ${levelName(sim.level + 1)}`,
-    cost: sim.level >= maxLevel() ? '' : fmt(sim.levelUpCost()),
-    enabled: sim.canLevelUp(),
-    run: () => sim.levelUp(),
-  });
-
-  renderActions(actions);
-}
-
-let actionSignature = '';
-
-function renderActions(actions: Action[]): void {
-  // Nur neu aufbauen, wenn sich wirklich etwas aendert - sonst flackert es und
-  // Klicks gehen verloren.
-  const signature = actions.map(a => `${a.label}|${a.cost}|${a.enabled}`).join('§');
-  if (signature === actionSignature) return;
-  actionSignature = signature;
-
-  actionsEl.replaceChildren(...actions.map(action => {
-    const button = document.createElement('button');
-    button.disabled = !action.enabled;
-    button.innerHTML = `${action.label}${action.cost ? `<span class="cost">${action.cost}</span>` : ''}`;
-    button.addEventListener('click', () => { action.run(); actionSignature = ''; });
-    return button;
-  }));
 }
 
 // --- Tempo (Testhilfe) ---------------------------------------------------
@@ -221,6 +134,7 @@ if (import.meta.env.DEV) {
   Object.assign(globalThis, {
     sim,
     map,
+    panel,
     jumpTo(level: number) {
       while (sim.level < level && sim.level < maxLevel()) {
         sim.cash = sim.cash.add(sim.levelUpCost().mul(2));
@@ -238,4 +152,5 @@ if (import.meta.env.DEV) {
   });
 }
 
+refreshPanel();
 requestAnimationFrame(step);

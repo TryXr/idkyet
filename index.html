@@ -9,10 +9,12 @@
         color-scheme: dark;
         --bg: #11131a;
         --panel: #171a23;
+        --card: #151824;
         --line: #262b38;
         --text: #dfe3ea;
         --muted: #8b93a5;
         --accent: #4c9f6a;
+        --warn: #d8934a;
       }
       * { box-sizing: border-box; }
       html, body { height: 100%; margin: 0; }
@@ -21,68 +23,171 @@
         color: var(--text);
         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
         display: grid;
-        grid-template-columns: 1fr minmax(260px, 320px);
+        grid-template-columns: 1fr minmax(300px, 360px);
       }
       /* Schmale Fenster: Karte oben, Bedienung darunter. */
-      @media (max-width: 720px) {
-        body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+      @media (max-width: 860px) {
+        body { grid-template-columns: 1fr; grid-template-rows: minmax(200px, 40vh) 1fr; }
       }
-      #map { position: relative; overflow: hidden; }
+
+      /* --- Karte ---------------------------------------------------------- */
+      #stage { position: relative; overflow: hidden; }
+      #map { position: absolute; inset: 0; }
       #map canvas { display: block; }
+      #voices {
+        position: absolute;
+        left: 16px; right: 16px; bottom: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        pointer-events: none;
+        /* Auf kurzen Karten lieber abschneiden als in den Hinweis wachsen. */
+        max-height: calc(100% - 56px);
+        overflow: hidden;
+        justify-content: flex-end;
+      }
+      .voice {
+        align-self: flex-start;
+        max-width: min(560px, 100%);
+        background: rgba(20, 23, 32, 0.92);
+        border: 1px solid var(--line);
+        border-left: 2px solid var(--accent);
+        border-radius: 6px;
+        padding: 7px 11px;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.25s ease, transform 0.25s ease;
+      }
+      .voice.in { opacity: 1; transform: none; }
+      .voice.leaving { opacity: 0; }
+      .voice-who {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      #speed {
+        position: absolute;
+        top: 12px; right: 12px;
+        display: flex;
+        gap: 4px;
+        opacity: 0.55;
+      }
+      #speed button { padding: 3px 7px; font-size: 12px; }
+      #speed:hover { opacity: 1; }
+      #mapHint {
+        position: absolute;
+        top: 12px; left: 12px;
+        max-width: 300px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* --- Bedienfeld ----------------------------------------------------- */
       #panel {
         border-left: 1px solid var(--line);
-        padding: 16px;
+        padding: 14px;
         overflow-y: auto;
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 12px;
       }
-      @media (max-width: 720px) {
-        #panel { border-left: none; border-top: 1px solid var(--line); max-height: 45vh; }
+      @media (max-width: 860px) {
+        #panel { border-left: none; border-top: 1px solid var(--line); }
       }
-      h1 { font-size: 15px; margin: 0; letter-spacing: 0.02em; }
+      header { display: grid; gap: 2px; }
+      h1 { font-size: 16px; margin: 0; letter-spacing: 0.02em; }
+      h2 { font-size: 12px; margin: 0 0 2px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
       .level { color: var(--muted); font-size: 12px; }
-      dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
-      dt { color: var(--muted); font-size: 12px; }
-      dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
-      .actions { display: flex; flex-direction: column; gap: 6px; }
+      .money { display: flex; align-items: baseline; gap: 8px; margin-top: 6px; }
+      .cash { font-size: 22px; font-variant-numeric: tabular-nums; }
+      .rate { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+      .warnings:empty { display: none; }
+      .warn {
+        border: 1px solid rgba(216, 147, 74, 0.4);
+        background: rgba(216, 147, 74, 0.08);
+        color: var(--warn);
+        border-radius: 6px;
+        padding: 6px 9px;
+        font-size: 12px;
+        margin-bottom: 6px;
+      }
+      .warn-text { color: var(--warn); }
+
+      .meters { display: grid; gap: 8px; }
+      .meter-head { display: flex; justify-content: space-between; font-size: 12px; gap: 8px; }
+      .meter-label { color: var(--muted); }
+      .meter-value { font-variant-numeric: tabular-nums; }
+      .bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin-top: 3px; }
+      .bar-fill { height: 100%; width: 0; background: var(--accent); transition: width 0.2s linear; }
+      .meter.warn .bar-fill { background: var(--warn); }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+      }
+      .card .body { display: grid; gap: 8px; }
+      .hint { color: var(--muted); font-size: 11.5px; margin: 0 0 8px; }
+      .line { font-size: 13px; }
+      .wait { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+      .rows { display: grid; gap: 8px; }
+      .row { border-top: 1px solid var(--line); padding-top: 8px; }
+      .row:first-child { border-top: none; padding-top: 0; }
+      .row-head { display: flex; justify-content: space-between; gap: 8px; }
+      .row-head .name { font-weight: 600; }
+      .row.best .row-head .name { color: var(--accent); }
+      .row-head .owned { color: var(--muted); font-variant-numeric: tabular-nums; }
+      .row-facts { color: var(--muted); font-size: 11.5px; }
+      .buttons { display: flex; gap: 6px; margin-top: 5px; flex-wrap: wrap; }
+
       button {
         background: var(--panel);
         color: var(--text);
         border: 1px solid var(--line);
         border-radius: 6px;
-        padding: 8px 10px;
+        padding: 7px 10px;
         font: inherit;
-        text-align: left;
         cursor: pointer;
+        font-variant-numeric: tabular-nums;
       }
       button:hover:not(:disabled) { border-color: var(--accent); }
-      button:disabled { opacity: 0.4; cursor: default; }
-      button .cost { float: right; color: var(--muted); font-variant-numeric: tabular-nums; }
-      .speed { display: flex; gap: 6px; }
-      .speed button { flex: 1; text-align: center; padding: 5px; }
-      .speed button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-      .hint { color: var(--muted); font-size: 12px; margin: 0; }
+      button:disabled { opacity: 0.35; cursor: default; }
+      button[hidden] { display: none; }
+      .buy { width: 100%; text-align: left; }
+      .buy.small { width: auto; flex: 1 1 auto; text-align: center; font-size: 12.5px; padding: 6px 8px; }
+      .link {
+        background: none; border: none; padding: 0;
+        color: var(--muted); font-size: 11.5px; text-align: left; text-decoration: underline;
+      }
+
+      .steps { display: grid; gap: 5px; }
+      .step { display: grid; grid-template-columns: 14px 1fr; gap: 2px 6px; font-size: 12px; }
+      .step-mark { color: var(--muted); }
+      .step.done .step-mark { color: var(--accent); }
+      .step-name { font-weight: 600; }
+      .step.done .step-name { color: var(--muted); font-weight: 400; }
+      .step-desc { grid-column: 2; color: var(--muted); font-size: 11.5px; }
+
+      .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; }
+      .facts dt { color: var(--muted); font-size: 12px; }
+      .facts dd { margin: 0; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; }
+      [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
     </style>
   </head>
   <body>
-    <div id="map"></div>
-    <div id="panel">
-      <div>
-        <h1 id="levelName">Straßenecke</h1>
-        <div class="level" id="levelIndex">Stufe 0 von 13</div>
-      </div>
-      <dl id="stats"></dl>
-      <div class="actions" id="actions"></div>
-      <div>
-        <div class="level" style="margin-bottom:6px">Tempo (nur zum Testen)</div>
-        <div class="speed" id="speed"></div>
-      </div>
-      <p class="hint">
-        Knoten anklicken schaltet ein Gebiet ab. Abgeschaltete Gebiete kühlen ab
-        und erholen sich im Preis. Mausrad zoomt, Ziehen verschiebt.
-      </p>
+    <div id="stage">
+      <div id="map"></div>
+      <p id="mapHint"></p>
+      <div id="speed"></div>
+      <div id="voices"></div>
     </div>
+    <div id="panel"></div>
     <script type="module" src="/src/ui/main.ts"></script>
   </body>
 </html>

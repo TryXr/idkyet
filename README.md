@@ -19,23 +19,27 @@ Eine Währung, kein Prestige, klares Ende nach rund fünf bis sieben Stunden.
 
 ## Stand
 
-Meilenstein M4 erreicht: Karte läuft, Simulationskern headless und deterministisch,
-mit Speichern, Laden, Offline-Fortschritt und Statthalter-Upgrades.
+Meilenstein M5 erreicht: das Spiel ist bedienbar. Karte, Kaufwege für Orte,
+Land und Lager mit Max-Buy und "Zeit bis zum nächsten Kauf", Statthalter-Menü
+und die Stimmen als Erzähl- und Tutorialschicht. Darunter der Simulationskern,
+headless und deterministisch, mit Speichern, Laden und Offline-Fortschritt.
 
 ```
 npm install
 npm run sim        # Regressionslauf gegen die Design-Ziele
-npm test           # Speichern, Laden, Offline-Fortschritt
+npm test           # Speichern, Karte, Bedienung
 npm run sweep      # Balance-Sweeps
 npm run typecheck
-npm run dev        # Karte im Browser
+npm run dev        # Spiel im Browser
 ```
 
 ## Aufbau
 
     src/core/    reine Simulation, kein DOM, deterministisch
       balance.ts   ALLE Konstanten an einer Stelle
-    tools/       Headless-Runner und Sweeps
+    src/ui/      Anzeigemodell (rein), Bedienfeld, Stimmen-Einblendung
+    src/content/ handgeschriebener Text: Stimmen und UI-Texte
+    tools/       Headless-Runner, Sweeps, Abnahmetests
 
 Dokumentation: [CLAUDE.md](CLAUDE.md) für Design und Entscheidungen,
 [BALANCING.md](BALANCING.md) für die Zahlen, [PLAN.md](PLAN.md) für den Fahrplan.

@@ -7,7 +7,7 @@
     "sim": "tsx tools/run-sim.ts",
     "sweep": "tsx tools/sweep.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx tools/test-save.ts && tsx tools/test-layout.ts",
+    "test": "tsx tools/test-save.ts && tsx tools/test-layout.ts && tsx tools/test-ui.ts",
     "diagnose": "tsx tools/diagnose.ts",
     "dev": "vite",
     "build": "vite build"

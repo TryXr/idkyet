@@ -199,10 +199,25 @@ Faktor aktiv/idle lag dann bei exakt 1.00.
 
 ## 10. Offene Punkte
 
-- Auf mehreren Stufen wird 99-100% der Zeit gespart und nur ein einziger,
-  sehr hochwertiger Ort gekauft. Das ist eine duenne Entscheidungsdichte -
-  wenige, grosse Kaeufe statt vieler kleiner. Kandidat fuer M5, wenn die
-  Bedienung steht und man es spueren kann.
+- ENTSCHEIDUNGSDICHTE (angesehen in M5, offen fuer M6). Auf mehreren Stufen
+  wird 99-100% der Zeit gespart und nur ein einziger, sehr hochwertiger Ort
+  gekauft. Mit der fertigen Bedienung laesst sich das jetzt beurteilen, und das
+  Bild ist zweigeteilt:
+  - Die Zahl stammt vom Autoplay, und der ist maximal geduldig: er wartet immer
+    auf die beste Amortisation. Ein Mensch sieht im Bedienfeld zu jeder Ortsart
+    eine eigene Wartezeit und kauft unterwegs die kleineren - die Dichte am
+    Bildschirm ist also hoeher als die in der Tabelle.
+  - Trotzdem bleibt der Rhythmus flach: die Meilensteine (x2 bei 25/50/100/200)
+    greifen fast nie, weil pro Stufe selten mehr als eine Handvoll Einheiten
+    derselben Art gekauft wird. Genau dieser Schub fehlt.
+  Naheliegender Hebel fuer M6: Meilensteine frueher (z. B. 10/25/50/100) oder
+  costGrowth leicht senken, damit sich mehr Einheiten derselben Art lohnen.
+  Beides geht nur mit `npm run sim` und `npm run diagnose` daneben.
 - Straßenecke dauert 27 min. Fuer die allererste Stufe zu lang; die ersten
   60 Sekunden sind ohnehin noch nicht gebaut (M6).
 - Offline-Cap: 8 h, passt zur Spiellaenge.
+- Das Ereignis `storageFull` meldet seit M5 die FLANKE der Drosselung
+  (Produktion wird beschnitten), nicht mehr den Stillstand bei genau null.
+  Vorher trat es praktisch nie ein, weil jede Sekunde ein wenig Ware abfliesst -
+  die Warnung im Bedienfeld haette es also nie gegeben. An den Zahlen aendert
+  das nichts, nur an der Meldung.

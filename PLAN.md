@@ -5,27 +5,28 @@ Grundlagen: CLAUDE.md (Design), BALANCING.md (Zahlen).
 
 ## Wo wir stehen (2026-08-26)
 
-M1 bis M4 sind erledigt, rund vier Wochen vor Plan. NAECHSTER SCHRITT IST M5
-(Bedienung). Die Simulation ist vollstaendig durchspielbar und die Karte laeuft.
+M1 bis M5 sind erledigt, gut fuenf Wochen vor Plan. NAECHSTER SCHRITT IST M6
+(Erste 60 Sekunden, Ende, Demo-Flag, Politur). Das Spiel ist vollstaendig
+bedienbar: Karte, Kaufwege, Statthalter-Menue und Stimmen stehen.
 
 Pruefsteine, alle gruen - bei jeder Aenderung laufen lassen:
 
     npm run sim        # M1: Spieldauer, Rhythmus, aktiv gegen idle
-    npm test           # M2 + M4: Speichern/Laden/Offline, Karte & Zoom
+    npm test           # M2 + M4 + M5: Speichern, Karte, Bedienung
     npm run diagnose   # wo die Zeit pro Zoomstufe hingeht
     npm run sweep      # Konstanten durchdrehen
-    npm run dev        # Karte im Browser (Port 5173)
+    npm run dev        # Spiel im Browser (Port 5173)
 
-Im Entwicklungsbuild haengen `sim`, `map`, `jumpTo(stufe)` und `reset()` am
-globalen Objekt - sonst dauert jeder Testdurchlauf sechs Stunden. `reset()`
+Im Entwicklungsbuild haengen `sim`, `map`, `panel`, `jumpTo(stufe)` und `reset()`
+am globalen Objekt - sonst dauert jeder Testdurchlauf sechs Stunden. `reset()`
 haengt vorher Autospeicher und Exit-Handler ab; ohne das schreibt die alte Seite
 ihren Stand waehrend des Neuladens zurueck.
 
-OFFENE PUNKTE, die bewusst auf M5 warten (Begruendung in BALANCING.md,
-Abschnitt 10): Auf mehreren Zoomstufen wird 99-100% der Zeit gespart und dann
-ein einziger sehr teurer Ort gekauft - duenne Entscheidungsdichte. Und die
-Straßenecke dauert 27 min, was fuer die allererste Stufe zu lang ist. Beides
-laesst sich erst beurteilen, wenn man es in der Bedienung spuert.
+OFFEN, jetzt fuer M6 (Begruendung in BALANCING.md, Abschnitt 10): die
+Entscheidungsdichte auf der optimalen Linie ist duenn (99-100% der Zeit wird
+gespart, dann faellt ein einziger grosser Kauf), und die Straßenecke dauert
+27 min. Beides sind Balancing-Fragen, keine Bedienungsfragen - die Bedienung
+zeigt sie jetzt nur deutlich.
 
 ## 1. Was v1 ist - und was nicht
 
@@ -57,7 +58,10 @@ nur die Ränder.
       save.ts          StorageAdapter-Schnittstelle, Version, Offline-Progress
       events.ts        benannte Events (später Steam-Erfolge)
     src/ui/            DOM für Zahlen/Listen, Pixi nur für die Karte
-    src/content/       Stimmen-Texte, max. 5 je Stufe
+      model.ts         Anzeigemodell, rein und ohne DOM - headless prüfbar
+      panel.ts         Bedienfeld, baut das Gerüst einmal und füllt nur noch
+      voices-view.ts   Einblendung der Stimmen über der Karte
+    src/content/       Stimmen-Texte (max. 5 je Stufe) und UI-Texte
     tools/             Headless-Runner, Balance-Sweeps, Regressionslauf
 
 Regeln: keine CDN-Abhängigkeit, kein Backend, keine direkten localStorage-
@@ -85,10 +89,16 @@ M4 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-22): Karte
   gekauftes Land eingefärbt.
   ABNAHME: Zoom von Stufe 0 bis 13 ohne Ruckeln und ohne Zahlenartefakte.
 
-M5 - bis 2026-09-29: Bedienung
+M5 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-29): Bedienung
   Kaufflüsse für Orte/Land/Lager, Max-Buy, "Zeit bis zum nächsten Kauf",
   Statthalter-Menü, Stimmen-Einblendungen.
   ABNAHME: ein Fremder spielt 20 min ohne mündliche Erklärung.
+  Das kann kein Skript prüfen. `tools/test-ui.ts` prüft stattdessen die
+  Eigenschaften, ohne die es sicher scheitert: keine Sackgasse (2442
+  Stichproben über einen ganzen Durchlauf), an jedem Kauf Preis und Wartezeit,
+  Wartezeiten die stimmen, Max-Buy kauft genau das Angekündigte, höchstens
+  5 Ortszeilen gleichzeitig, und jede Stimmen-Zeile fällt im Spiel wirklich.
+  Der Test mit einem echten Fremden steht noch aus - dafür ist der Web-Build da.
 
 M6 - bis 2026-10-06: rund
   Erste 60 Sekunden, Ende, Demo-Build-Flag, Politur.
