@@ -30,6 +30,9 @@ Exit-Handler ab; ohne das schreibt die alte Seite ihren Stand waehrend des
 Neuladens zurueck.
 
 WAS ALS NAECHSTES ANSTEHT:
+- TIEFE.md ZUERST LESEN. Das Spiel laeuft durch, fuehlt sich aber repetitiv an.
+  Befund, Recherche und der Umbauplan (Loehne, Gebietseigenschaften, Rivale,
+  Entfaltungsplan) stehen dort samt neuen Abnahmekriterien.
 - Echter Playtest mit Fremden (itch.io, r/incremental_games). Der einzige
   Abnahmepunkt, den kein Skript ersetzen kann.
 - Kettenstufe 3 (Professor, Pate) wird nie gekauft - billiger machen oder
