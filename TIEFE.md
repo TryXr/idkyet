@@ -5,7 +5,12 @@ sich trotzdem repetitiv anfuehlte. Grundlage: Recherche zu Universal Paperclips,
 Kittens Game, Antimatter Dimensions, Cookie Clicker, AdVenture Capitalist,
 Dr. Meth und den Design-Aufsaetzen des Genres (Quellen am Ende).
 
-Dieses Dokument ergaenzt CLAUDE.md, es ersetzt es nicht. Der Kernsatz bleibt.
+Nachtrag vom selben Tag: das Thema wurde auf WEED umgestellt und die Ernte
+bekommt eine zweite Verwendung. Beides steht in CLAUDE.md, die Begruendung in
+Abschnitt 2a und E1 hier. Der Befund in Abschnitt 1 ist davon unberuehrt - er
+beschreibt das Modell, nicht das Thema.
+
+Dieses Dokument ergaenzt CLAUDE.md, es ersetzt es nicht.
 
 
 ## 1. Befund: das Spiel trifft seine eigenen Ziele nicht
@@ -106,6 +111,39 @@ Sechs Punkte, in der Reihenfolge, in der sie fuer uns zaehlen.
    Ein Schub, den niemand bemerkt, ist kein Schub.
 
 
+## 2a. Machbarkeit: mehrere Ressourcen, wie Dr. Meth (geprueft 2026-08-26)
+
+Wunsch: mehrere Ressourcen, "Dr. Meth hat das super geloest". Nachgesehen, was
+dort wirklich passiert:
+
+    Cash      die EINZIGE Waehrung
+    Gramm     Bestand, Puffer zwischen Kochen und Verkaufen
+    Reinheit  ein Multiplikator, der am Ort haengt ("1 g bei 50 % gibt 50 $")
+    Dealer    fester Absatz je halbe Sekunde
+    Orte      teurer = mehr Ertrag UND hoehere Reinheit
+
+Das ist genau unsere Struktur: Bargeld, Ware, Raumqualitaet, Dealer, Raeume.
+Der Unterschied ist nicht die Anzahl der Ressourcen, sondern dass Dr. Meth die
+Reinheit ANZEIGT und in den Preis rechnet, waehrend unsere Raumqualitaet
+unsichtbar im Ertrag verschwindet. Eine unsichtbare Zahl kann sich nicht gut
+anfuehlen.
+
+URTEIL: machbar, und zwar in dieser Form:
+
+- JA zu einer Ressource, die WIRKLICH etwas Neues kann: die Ernte bekommt eine
+  zweite Verwendung (verkaufen oder als Steckling zuruecklegen), daraus wird
+  der Bestand PFLANZEN. Das ist der Rueckkopplungs-Kreis, der dem Spiel fehlt,
+  und beim Thema Weed erklaert er sich von selbst.
+- JA zur sichtbaren Qualitaet in Prozent und im Grammpreis. Billig, wirkt
+  sofort.
+- NEIN zu vier parallelen Waehrungen mit vier Menues. Das waere die Anzahl der
+  Zahlen erhoehen, ohne die Anzahl der Entscheidungen zu erhoehen - genau der
+  Fehler, den das Leitprinzip verbietet.
+
+Aufwand fuer den Ressourcen-Umbau: rund eine Woche, davon der groessere Teil
+Nachbalancieren. Bei sechs Wochen bis zur Deadline vertretbar.
+
+
 ## 3. Der Eingriff: drei Aenderungen, eine je Regel
 
 Wichtig fuer das Leitprinzip: es kommt KEINE VIERTE REGEL dazu. Jede der drei
@@ -113,49 +151,75 @@ bestehenden Regeln bekommt genau eine Eigenschaft, die sie mit den anderen
 verzahnt. Aus "drei Regeln nacheinander" wird "drei Regeln, die sich gegenseitig
 beschraenken". Das ist der Unterschied zwischen addieren und multiplizieren.
 
-### E1 - KOCHEN kostet laufend (Rueckkopplung)
+### E1 - ZIEHEN speist sich aus der eigenen Ernte (Rueckkopplung)
 
-Arbeiter wollen bezahlt werden: `lohn(stufe)` Bargeld je Sekunde je Arbeiter,
-skaliert mit dem Preisniveau der Ebene.
+Der Kern des Umbaus, und der Grund fuer das Weed-Thema. Zwei Teile:
 
-Was das aendert:
-- "Mehr Arbeiter" ist nicht mehr automatisch richtig. Es gibt ein OPTIMUM,
-  und das verschiebt sich mit jedem Raumkauf.
-- Raumqualitaet bekommt Bedeutung: ein Junkie im Badezimmer verdient irgendwann
-  seinen Lohn nicht mehr ein. Der Aufstieg in bessere Raeume wird zur
-  Notwendigkeit statt zur Fleissaufgabe.
-- Leerlauf wird teuer. Wer produziert, ohne zu verkaufen, zahlt jetzt dafuer -
-  das Wechselspiel der zwei Haelften bekommt endlich Zaehne.
-- Der Lagerstau bekommt Konsequenz: volles Lager heisst jetzt zahlende
-  Arbeiter ohne Ertrag.
+**Der Setz-Regler.** Die Ernte hat ab jetzt zwei Verwendungen: verkaufen oder
+als Steckling zuruecklegen. Ein Regler bestimmt den Anteil. Zurueckgelegte
+Ernte wird zu PFLANZEN, und Pflanzen sind die Produktionsbasis - nur durch
+Platz in den Raeumen begrenzt.
 
-Kein Fail-State: reicht das Einkommen nicht, legen Arbeiter die Arbeit nieder
-(produzieren nichts) statt Schulden zu machen. Man verliert Tempo, nie den
-Spielstand. Die Stimmen kommentieren das - beste Witzquelle im ganzen Entwurf.
+    aktive_pflanzen = min(pflanzen, plaetze)
+    pflege          = min(1, gaertner * pflegeProGaertner / aktive_pflanzen)
+    ertrag          = aktive_pflanzen * qualitaet(raum) * pflege
 
-Aufwand: klein. Eine Konstante in `balance.ts`, ein Term in `sim.ts`, eine
-Zeile im Anzeigemodell.
+Drei Faktoren, drei verschiedene Waehrungen der Beschaffung: Platz kostet
+Bargeld, Pflege kostet Bargeld, Pflanzen kosten ERNTE. Damit ist es ein
+Produkt konkurrierender Ansprueche statt eines Minimums aus zwei Zahlen -
+Punkt 1.2 des Befunds ist damit erledigt.
 
-### E2 - UEBERNEHMEN gibt eine Faehigkeit, nicht nur Geld (ungleiche Belohnung)
+Das Optimum des Reglers KIPPT staendig, und genau das erzeugt den Rhythmus:
 
-Jedes Gebiet bekommt aus dem Seed EINE Eigenschaft aus einem kleinen Satz.
-Kein handgeschriebener Inhalt, nur ein Feld mehr in `territory.ts`:
+    frisch gekaufter Raum  ->  alles zuruecklegen, bis er voll ist
+    voller Raum            ->  alles verkaufen, bis der naechste bezahlt ist
 
-| Eigenschaft   | Wirkung bei Uebernahme                          |
-|---------------|-------------------------------------------------|
-| Halle         | ein Raum der aktuellen Stufe gratis             |
-| Arbeitermarkt | Arbeiter kosten dauerhaft -15 % (Kauf UND Lohn) |
-| Umschlagplatz | +20 % Absatz je Dealer                          |
-| Stammkunden   | doppelte Rente, sonst nichts                    |
-| Revier        | hohe Rente, aber zieht die Konkurrenz an (E3)   |
+Damit ist ein Raumkauf ein EREIGNIS mit Nachspiel und kein Listeneintrag. Das
+ist der "meaningful"-Fortschritt: der Umzug vom Badezimmer in den Keller
+aendert fuer die naechsten Minuten, was man tut - nicht nur, wie schnell die
+Zahl steigt.
 
-Was das aendert: die Zielwahl entscheidet, WAS DU WIRST, nicht nur wie schnell.
-Zwei Durchlaeufe sehen verschieden aus. Aus 120 gleichen Belohnungen werden
-kleine Entscheidungen mit Nachwirkung - und das kostet keinen Content, weil die
-Verteilung aus dem Seed faellt.
+Die Pflanzenzahl waechst exponentiell, solange zurueckgelegt wird. Das ist
+ungefaehrlich, weil sie am Platz haengt und Platz exponentiell teurer wird -
+der Genre-Motor bleibt also unangetastet.
+
+**Betriebskosten.** Strom, Duenger, Lohn: Bargeld je Sekunde, abhaengig von
+aktiven Pflanzen und Raumstufe. Damit wird Leerlauf teuer, ein volles Lager
+schmerzt wirklich, und die Raumleiter muss man sich verdienen statt sie
+abzuarbeiten. Kein Fail-State: reicht das Einkommen nicht, sinkt die Pflege
+(niemand kuemmert sich), es entstehen aber keine Schulden.
+
+Beim Thema Weed ist die Stromrechnung ausserdem der naheliegendste Witz im
+ganzen Spiel, und die Stimmen bekommen ihn geschenkt.
+
+Aufwand: der groesste Einzelposten. `rooms.ts` und der Produktionspfad in
+`sim.ts` werden umgebaut, ein Regler kommt ins Panel, und `qualityMult` muss
+neu gesucht werden (`npm run sweep`). Rund eine Woche.
+
+### E2 - UEBERNEHMEN bringt eine SORTE (ungleiche Belohnung)
+
+Jedes Gebiet bringt bei der Uebernahme eine Sorte mit. Name aus dem Ortsnamen,
+Vorteil aus dem Seed - kein handgeschriebener Inhalt, ein Feld mehr in
+`territory.ts`:
+
+| Sorte (Beispiel)   | Dauerhafter Vorteil                         |
+|--------------------|---------------------------------------------|
+| Duisburger Nebel   | +Ertrag je Pflanze                          |
+| Oberhausen Kush    | +Plaetze je Raum                            |
+| Essener Feierabend | -Betriebskosten                             |
+| Dortmund Diesel    | +Absatz je Verkaeufer                       |
+| Ganymed Frost      | -Ernte je Steckling (Pflanzen werden billig)|
+| Bochumer Klassik   | doppelte Rente, sonst nichts                |
+
+Was das aendert: die Zielwahl entscheidet, WAS DU WIRST, nicht nur wie
+schnell. Zwei Durchlaeufe sehen verschieden aus. Aus gleichfoermigen
+Uebernahmen werden Entscheidungen mit Nachwirkung. Und die Sortenliste ist
+nebenbei eine SAMMLUNG - sichtbarer Beweis dafuer, wo man ueberall war, was
+Punkt 1.5 des Befunds direkt angeht.
 
 Aufwand: mittel. Feld in `Territory`, Zuweisung in `world.ts`, Wirkung als
-Modifikatoren in `sim.ts`, Anzeige auf der Karte und im Panel.
+Modifikatoren in `sim.ts`, Anzeige auf der Karte, im Panel und in der
+Schlussbilanz.
 
 ### E3 - VERKAUFEN hat Konkurrenz (Gegendruck)
 
@@ -184,8 +248,8 @@ gleichzeitig zu zeigen ist der Grund, warum sich Ebene 2 bis 8 gleich anfuehlen.
 
 | Ebene              | Was neu dazukommt                                            |
 |--------------------|--------------------------------------------------------------|
-| 0 Ruhrgebiet       | Von Hand kochen und verkaufen. Junkie, Dealer, Badezimmer. Sonst nichts sichtbar. |
-| 1 Deutschland      | Loehne (E1) werden faellig. Kettenstufe 2, Lager.            |
+| 0 Ruhrgebiet       | Von Hand ernten und verkaufen, eine Pflanze im Badezimmer, der Setz-Regler. Sonst nichts sichtbar. |
+| 1 Deutschland      | Betriebskosten werden faellig. Kettenstufe 2, Lager.         |
 | 2 Europa           | Gebietseigenschaften (E2) werden sichtbar und waehlbar.      |
 | 3 Welt             | Der Rivale taucht auf (E3). Kettenstufe 3.                   |
 | 4 Erdorbit         | Meilenstein-Anzeige und Max-Buy: Automatisierung als Belohnung. |
@@ -210,9 +274,10 @@ gleichfoermigen Reihe. Bedarf entsprechend anheben, damit die Spieldauer bleibt
 
 ### 4.2 Kettenstufe 3 wird billiger, nicht gestrichen
 
-`costTierMult` von 55 auf ~35, damit Professor und Pate im letzten Drittel
-wirklich fallen. Mit E1 (Loehne) hat die Stufe zum ersten Mal ein Argument:
-sie stellt ein, ohne selbst Lohn zu kosten - Verwaltung statt Muskel.
+`costTierMult` von 55 auf ~35, damit Professor und Konzernchef im letzten
+Drittel wirklich fallen. Mit den Betriebskosten aus E1 hat die Stufe zum ersten
+Mal ein Argument: sie stellt ein, ohne selbst laufend Geld zu kosten -
+Verwaltung statt Muskel.
 
 ### 4.3 Lager bleibt, wird aber Folge statt Knopf
 
@@ -225,15 +290,22 @@ Knopf weniger im Sinne des Leitprinzips.
 
 Immer wie bisher: Konstante -> Kern -> Messlauf -> erst dann UI.
 
-    Schritt 1  E1 Loehne, headless. 1 Tag.
-               Messen: gibt es ein Optimum, d.h. macht die Kaufpolitik im
-               Autoplay jetzt Fehler, wenn sie stur die kleinere Seite kauft?
+    Schritt 0  Thema umstellen: Anzeigetexte, Namen der Raeume und Ketten,
+               Stimmen-Zeilen. Rein kosmetisch, ein halber Tag, und danach
+               sieht man beim Spielen, wovon man redet. Interne Bezeichner
+               (`cook`, `sell`) bleiben, wie sie sind.
+    Schritt 1  E1 Pflanzen, Setz-Regler und Betriebskosten, headless.
+               Der grosse Brocken, rund eine Woche mit Nachbalancieren.
+               Messen: kippt das Optimum des Reglers wirklich mit jedem
+               Raumkauf? Wenn eine feste Reglerstellung durchweg optimal ist,
+               ist die Entscheidung nur dekorativ und muss schaerfer werden.
     Schritt 2  E3 Rivale, headless. 1-2 Tage.
                Messen: aktiv gegen idle. ABBRUCHKRITERIUM unten.
-    Schritt 3  E2 Gebietseigenschaften. 2-3 Tage.
+    Schritt 3  E2 Sorten. 2-3 Tage.
                Messen: Streuung der Durchlaeufe ueber verschiedene Seeds.
     Schritt 4  4.1 und 4.2 nachbalancieren, Regressionslauf gruen.
-    Schritt 5  E4 Entfaltung in UI und Stimmen. 2-3 Tage.
+    Schritt 5  E4 Entfaltung in UI und Stimmen, sichtbare Qualitaet in Prozent
+               und im Grammpreis. 2-3 Tage.
     Schritt 6  Playtest mit Fremden. Der eigentliche Abnahmepunkt.
 
 ### Neue Abnahmekriterien fuer `npm run sim`
@@ -286,3 +358,6 @@ Raumleiter mit echten Verzweigungen).
 - https://antimatterdimensions.online/challenges/
 - https://wiki.kittensgame.com/en/general-information/game-mechanics
 - https://en.wikipedia.org/wiki/Universal_Paperclips
+- https://drmeth.com/faq/ (Reinheit, Combo, Orte, Dealer - Vorbild fuer 2a)
+- https://store.steampowered.com/app/1056230/Medicinal_Herbs__Cannabis_Grow_Simulator/
+  (Sorten und Anbau-Kreislauf als Vorbild fuer das Thema, nicht fuer den Detailgrad)

@@ -89,11 +89,20 @@ gezeigt hat, ist tot.
 
 ## Konzept (neu gefasst am 2026-08-26)
 
-Thema: Drogenhandel-Ökonomie. Kein Pilz-Thema (verworfen).
+Thema: WEED — Anbau und Handel (festgelegt am 2026-08-26). Kein Meth-Thema
+mehr, kein Pilz-Thema. Du fängst als Einzelner im Badezimmer der eigenen
+Wohnung an und belieferst am Ende die ganze Welt.
 
-Produktion bleibt abstrakt: Ertrag und Durchsatz sind Zahlen und
-Balancing-Parameter. Keine reale Chemie, keine Syntheseanleitungen im Spiel,
-in den Texten oder im Code.
+Warum der Wechsel: Meth zwang zu Labor und Chemie — beides musste im Spiel
+abstrakt bleiben und war damit eine Leerstelle. Weed ANBAUEN ist dagegen von
+sich aus ein Kreislauf: aus der Ernte kommen die nächsten Pflanzen. Genau
+diese Rückkopplung fehlte dem Spiel (siehe TIEFE.md). Das Thema liefert sie
+umsonst — und die Raumleiter vom Badezimmer bis zum Asteroiden-Gewächshaus
+ist als Fortschrittsanzeige sofort lesbar.
+
+Anbau bleibt abstrakt: Ertrag und Durchsatz sind Zahlen und
+Balancing-Parameter. Kein reales Anbauwissen, keine Anleitungen im Spiel,
+in den Texten oder im Code. Der Ton bleibt Komödie, nicht Ratgeber.
 
 WICHTIG: Dieses Konzept ersetzt das ursprüngliche Marktmodell (Preisverfall,
 Hitze, Marktsperren, Statthalter-Politiken). Der Stand davon liegt als Tag
@@ -104,60 +113,120 @@ Das ist das befriedigendere Gefühl und der klassische Genre-Motor.
 
 ### Kernsatz
 
-Du kochst, du verkaufst, du übernimmst — Stadt für Stadt, bis dir die Welt
-gehört.
+Du ziehst, du verkaufst, du übernimmst — vom Badezimmer bis zur ganzen Welt.
 
 ### Drei Grundregeln
 
-1. KOCHEN: Arbeiter machen in deinen Räumen Ware. Der Raum bestimmt die
-   Qualität (Badezimmer wenig, Labor viel), der Arbeiter die Menge.
-2. VERKAUFEN: Verkäufer setzen die Ware in einem Gebiet ab. Das füllt dort den
-   Versorgungsbalken und bringt Bargeld.
+1. ZIEHEN: Pflanzen in deinen Räumen bringen Ernte. Der Raum gibt PLATZ und
+   QUALITÄT, der Gärtner die PFLEGE, die eigene Ernte die nächsten PFLANZEN.
+2. VERKAUFEN: Verkäufer setzen die Ernte in einem Gebiet ab. Das füllt dort
+   den Versorgungsbalken und bringt Bargeld.
 3. ÜBERNEHMEN: Ein Gebiet bei 100 % gehört dir für immer und zahlt ab da
-   passiv — jedes unterschiedlich viel. Sind alle Gebiete einer Ebene deins,
-   zoomt die Karte heraus und die nächstgrößere Ebene liegt offen.
+   passiv — jedes unterschiedlich viel, und jedes bringt seine SORTE mit.
+   Sind alle Gebiete einer Ebene deins, zoomt die Karte heraus und die
+   nächstgrößere Ebene liegt offen.
 
 Alles Weitere folgt daraus. Es gibt keine vierte Regel.
 
+### Ressourcen (festgelegt am 2026-08-26)
+
+Drei Zahlen, aber weiterhin nur EINE Währung. Der Unterschied zu vier
+parallelen Währungen mit vier Menüs ist der ganze Punkt.
+
+    BARGELD    Die einzige Währung. Alles wird damit gekauft: Räume,
+               Gärtner, Verkäufer.
+    ERNTE      Der Bestand im Lager. Hat ZWEI Verwendungen, und darin liegt
+               die wichtigste Entscheidung des Spiels: verkaufen (Bargeld
+               jetzt) oder als Stecklinge zurücklegen (mehr Pflanzen später).
+    PFLANZEN   Die Produktionsbasis. Wachsen NUR aus der eigenen Ernte, nie
+               aus Bargeld. Begrenzt durch den Platz in deinen Räumen.
+
+Dazu ein laufender Abfluss statt einer vierten Zahl:
+
+    BETRIEBSKOSTEN   Strom, Dünger, Lohn. Bargeld je Sekunde, abhängig von
+                     Pflanzen und Raumstufe. Reicht das Einkommen nicht,
+                     kümmert sich niemand mehr — der Ertrag sinkt, es gibt
+                     aber keine Schulden und keinen verlorenen Spielstand.
+
+Der Ertrag ist ein Produkt aus drei Faktoren, die man auf drei verschiedene
+Arten bekommt — deshalb ist es eine Abwägung und keine Anweisung:
+
+    aktive_pflanzen = min(pflanzen, plätze)                 // aus der Ernte
+    pflege          = min(1, gärtner * pflegeProGärtner / aktive_pflanzen)
+    ertrag          = aktive_pflanzen * qualität(raum) * pflege
+
+QUALITÄT WIRD SICHTBAR. Sie bleibt ohne eigenes Menü (das ist weiter richtig),
+aber sie steht als Zahl auf dem Schirm: "3.4 kg @ 62 % → 12 € je Gramm".
+Vorbild ist die Reinheit in Dr. Meth: dieselbe Mechanik wie unsere bisherige
+Raumqualität, nur eben angezeigt statt versteckt. Eine unsichtbare Zahl kann
+sich nicht gut anfühlen.
+
+DIE SETZ-ENTSCHEIDUNG ist das Herz des neuen Modells. Ein Regler bestimmt,
+welcher Anteil der Ernte als Steckling zurückgeht. Sein Optimum kippt ständig:
+frisch gekaufter Raum heißt "alles zurücklegen, bis er voll ist", voller Raum
+heißt "alles verkaufen". Daraus entsteht der Rhythmus aus Schüben und ruhigen
+Phasen, den der Abschnitt "Rhythmus statt gleichmäßiger Verlangsamung"
+verlangt — ohne eine einzige zusätzliche Regel.
+
 ### Die beiden Knöpfe und wie sie verschwinden
 
-Zu Beginn drückt der Spieler selbst: ein Knopf kocht eine Portion, ein zweiter
-verkauft sie. Beide Knöpfe werden im Lauf des Spiels von Helfern übernommen —
-das ist der eigentliche Fortschritt, nicht die Zahl auf dem Konto.
+Zu Beginn drückt der Spieler selbst: ein Knopf erntet, ein zweiter verkauft.
+Beide Knöpfe werden im Lauf des Spiels von Helfern übernommen — das ist der
+eigentliche Fortschritt, nicht die Zahl auf dem Konto.
 
-ZWEI KETTEN, denn Kochen und Verkaufen sind zwei verschiedene Engpässe:
+ZWEI KETTEN, denn Ziehen und Verkaufen sind zwei verschiedene Engpässe:
 
-    KOCHEN     Junkie   -> macht Ware
-               Koch     -> stellt Junkies ein
-               Chemiker -> stellt Köche ein
+    ANBAU      Gärtner   -> pflegt Pflanzen
+               Grower    -> stellt Gärtner ein
+               Botaniker -> stellt Grower ein
+               Professor -> stellt Botaniker ein
 
-    VERKAUFEN  Dealer       -> verkauft Ware
+    VERKAUFEN  Dealer       -> verkauft Ernte
                Straßenboss  -> stellt Dealer ein
-               Kartellchef  -> stellt Straßenbosse ein
+               Großhändler  -> stellt Straßenbosse ein
+               Konzernchef  -> stellt Großhändler ein
 
-Jede Stufe erzeugt die Stufe DARUNTER, nicht Ware direkt. Dadurch wächst die
+Jede Stufe erzeugt die Stufe DARUNTER, nicht Ernte direkt. Dadurch wächst die
 Produktion polynomial (die zweite Stufe ist die Ableitung der ersten), während
 die Kosten exponentiell steigen — genau der Motor aus dem Abschnitt
-"Mathematischer Kern". Und es erklärt sich von selbst: ein Kartellchef kocht
-nichts, er stellt Leute ein.
+"Mathematischer Kern". Und es erklärt sich von selbst: ein Konzernchef steht
+nicht am Beet, er stellt Leute ein.
+
+Die Verkaufskette wird nach oben hin immer legaler — vom Dealer im Hausflur
+zum Konzernchef mit Quartalsbericht. Das ist der Witz und niemand kommentiert
+ihn.
 
 Der Spieler sieht dadurch immer, welche Hälfte klemmt: Lager voll heißt zu
-wenig Verkäufer, Lager leer heißt zu wenig Arbeiter.
+wenig Verkäufer, Lager leer heißt zu wenig Pflanzen oder zu wenig Pflege.
 
-### Räume und Arbeiter
+Im Code heißen die beiden Ketten weiterhin `cook` und `sell` — interne Namen,
+die niemand sieht. Nur die Anzeige ist auf Weed umgestellt; ein Umbenennen der
+Bezeichner wäre reine Bewegung ohne Wirkung.
 
-Arbeiter brauchen einen Platz. Räume (Badezimmer, Garage, Wohnwagen, Keller,
-Lagerhalle … bis Labor und Raffinerie) bieten PLÄTZE und bestimmen die
-QUALITÄT, also den Ertrag je Arbeiter.
+### Räume, Pflanzen und Gärtner
+
+Pflanzen brauchen Platz. Räume bieten PLÄTZE und bestimmen die QUALITÄT, also
+den Ertrag je Pflanze. Die Leiter ist zugleich die Fortschrittsanzeige des
+Spiels und seine Gag-Kurve:
+
+    Badezimmer, Kleiderschrank, Dachboden, Kellergeschoss, Garage,
+    Gartenlaube, Gewächshaus, Scheune, Lagerhalle, Freilandfeld, Plantage,
+    Vertical Farm, Orbitalgewächshaus, Mondkuppel, Asteroiden-Gewächshaus
 
 Zuteilung passiert automatisch und immer in den besten freien Raum — der
-Spieler soll nicht Leute auf Zimmer verteilen. Die einzige Entscheidung ist
-"mehr Räume oder mehr Arbeiter?", und die stellt sich von allein: zu viele
-Arbeiter stehen sichtbar herum, zu viele Räume stehen leer.
+Spieler soll keine Pflanzen auf Zimmer verteilen. Es bleiben drei Käufe
+(Raum, Gärtner, Verkäufer) und ein Regler (Setzanteil), und jeder Engpass
+zeigt sich von allein: leere Plätze heißen zu wenig zurückgelegt, ungepflegte
+Pflanzen zu wenig Gärtner, volles Lager zu wenig Verkäufer.
 
-QUALITÄT IST KEIN EIGENER HEBEL. Sie steckt im Raum, ist eine Zahl im
-Ertrag und hat kein eigenes Menü (entschieden am 2026-08-26, dieselbe
-Begründung wie beim gestrichenen Reinheits-System).
+EIN NEUER RAUM IST EIN EREIGNIS, kein Listeneintrag. Er steht erst einmal
+leer, und ihn zu füllen kostet Ernte, die man sonst verkauft hätte. Deshalb
+fühlt sich der Umzug vom Badezimmer in den Keller nach etwas an — das ist
+genau der "meaningful"-Fortschritt, der dem alten Modell fehlte.
+
+QUALITÄT IST KEIN EIGENER HEBEL, aber sie ist SICHTBAR. Sie steckt im Raum
+und hat kein eigenes Menü — sie steht aber als Prozentzahl am Lagerbestand
+und im Preis (siehe Abschnitt Ressourcen).
 
 ### Gebiete, Versorgung und Übernahme
 
@@ -173,6 +242,20 @@ dir gehört, bleibt dir.
 Daraus entsteht die Zielwahl von selbst: Ein großes Gebiet zahlt mehr Rente,
 braucht aber lange; ein kleines ist schnell deins. Wer klug wählt, kommt
 schneller voran — ohne dass eine Regel dafür nötig wäre.
+
+SORTEN (festgelegt am 2026-08-26). Jedes Gebiet bringt bei der Übernahme eine
+eigene Sorte mit, deren Name aus dem Ortsnamen entsteht ("Duisburger Nebel",
+"Ganymed Frost") und die genau EINEN dauerhaften Vorteil hat:
+
+    mehr Ertrag je Pflanze          |  mehr Plätze je Raum
+    weniger Betriebskosten          |  mehr Absatz je Verkäufer
+    weniger Ernte je Steckling      |  doppelte Rente, sonst nichts
+
+Damit ist jede der Übernahmen eine andere Belohnung statt der 120. gleichen,
+und die Zielwahl entscheidet, WAS DU WIRST, nicht nur wie schnell. Beides
+kostet keinen handgeschriebenen Inhalt: Name und Vorteil fallen aus dem Seed.
+Nebenbei entsteht die Sortenliste als Sammlung — sichtbarer Beweis dafür, wo
+man überall war. Warum das nötig ist, steht in TIEFE.md.
 
 ### Ebenen: echte Orte, herauszoomende Karte
 
@@ -205,7 +288,8 @@ Zielwert wie bisher: aktiv ca. 1.5 bis 2x Idle-Rate.
 
 ### Was aus dem alten Konzept bleibt
 
-- Eine Währung (Bargeld) plus Ware als Ressource. Kein Prestige.
+- Eine Währung (Bargeld). Ernte und Pflanzen sind Ressourcen, keine zweite
+  Währung — es gibt nichts, was man mit ihnen im Laden kauft. Kein Prestige.
 - Lager mit Obergrenze: läuft es über, stockt die Produktion (kein Verlust).
 - Offline-Fortschritt, Cap 8 h.
 - Klares Ende: alles übernommen, die Stimmen sind zufrieden, Schlussbilanz.
@@ -260,11 +344,13 @@ Schluss.
 
 ### Weitere Festlegungen (Stand 2026-08-26)
 
-ERSTE 60 SEKUNDEN: Start mit einem Badezimmer, einem Junkie und Duisburg als
-erstem Gebiet. Der Spieler drueckt beide Knoepfe selbst - kochen, verkaufen,
-kochen, verkaufen. Nach wenigen Klicks reicht es fuer den zweiten Junkie, nach
-rund einer Minute fuer den ersten Dealer, und ab da verkauft es sich von selbst.
-Der erste Koch (der Junkies einstellt) beendet auch das Kochen von Hand.
+ERSTE 60 SEKUNDEN: Start im eigenen Badezimmer, mit EINER Pflanze und Duisburg
+als erstem Gebiet. Der Spieler drueckt beide Knoepfe selbst - ernten,
+verkaufen, ernten, verkaufen. Die erste Ernte reicht entweder fuer etwas Geld
+oder fuer die zweite Pflanze, und damit steht die zentrale Entscheidung des
+Spiels schon in der ersten Minute auf dem Schirm, ohne ein Wort Erklaerung.
+Nach wenigen Klicks reicht es fuer den ersten Gaertner, nach rund einer Minute
+fuer den ersten Dealer, und ab da laeuft es von selbst.
 Klicken ist TUTORIAL, kein Dauerzustand - und der Spieler versteht die Helfer,
 weil er ihre Arbeit vorher selbst gemacht hat.
 
@@ -273,11 +359,14 @@ kein Verlust, nur Stillstand. Es ist zugleich die Anzeige, welche Kette klemmt:
 volles Lager heisst zu wenig Verkaeufer, leeres Lager zu wenig Arbeiter.
 Lagerausbau ist die dritte Kaufoption neben Raeumen und Helfern.
 
-ZWEI ACHSEN, die sich gegenseitig blockieren:
-  RAEUME + ARBEITER = WIE VIEL DU HAST
+DREI ACHSEN, die sich gegenseitig blockieren:
+  RAEUME + PFLANZEN = WIE VIEL PLATZ BESETZT IST
+  GAERTNER          = WIE GUT DAVON GEERNTET WIRD
   VERKAEUFER        = WIE VIEL DAVON ANKOMMT
-Produktion ohne Verkauf laeuft ins volle Lager, Verkauf ohne Produktion steht
-still. Daraus entsteht das Wechselspiel - ohne dass eine Regel es vorschreibt.
+Pflanzen ohne Platz gibt es nicht, Platz ohne Pflanzen kostet trotzdem
+Betriebskosten, Ernte ohne Verkaeufer laeuft ins volle Lager. Jede Achse wird
+anders bezahlt - Platz und Pflege mit Bargeld, Pflanzen mit der eigenen Ernte.
+Daraus entsteht das Wechselspiel, ohne dass eine Regel es vorschreibt.
 
 OFFLINE-CAP: 8 h (entspricht der Spiellaenge).
 
