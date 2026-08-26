@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IDKYET</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #11131a;
+        --panel: #171a23;
+        --line: #262b38;
+        --text: #dfe3ea;
+        --muted: #8b93a5;
+        --accent: #4c9f6a;
+      }
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+        display: grid;
+        grid-template-columns: 1fr minmax(260px, 320px);
+      }
+      /* Schmale Fenster: Karte oben, Bedienung darunter. */
+      @media (max-width: 720px) {
+        body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+      }
+      #map { position: relative; overflow: hidden; }
+      #map canvas { display: block; }
+      #panel {
+        border-left: 1px solid var(--line);
+        padding: 16px;
+        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      @media (max-width: 720px) {
+        #panel { border-left: none; border-top: 1px solid var(--line); max-height: 45vh; }
+      }
+      h1 { font-size: 15px; margin: 0; letter-spacing: 0.02em; }
+      .level { color: var(--muted); font-size: 12px; }
+      dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; }
+      dt { color: var(--muted); font-size: 12px; }
+      dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+      .actions { display: flex; flex-direction: column; gap: 6px; }
+      button {
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 8px 10px;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      button:hover:not(:disabled) { border-color: var(--accent); }
+      button:disabled { opacity: 0.4; cursor: default; }
+      button .cost { float: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+      .speed { display: flex; gap: 6px; }
+      .speed button { flex: 1; text-align: center; padding: 5px; }
+      .speed button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+      .hint { color: var(--muted); font-size: 12px; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="panel">
+      <div>
+        <h1 id="levelName">Straßenecke</h1>
+        <div class="level" id="levelIndex">Stufe 0 von 13</div>
+      </div>
+      <dl id="stats"></dl>
+      <div class="actions" id="actions"></div>
+      <div>
+        <div class="level" style="margin-bottom:6px">Tempo (nur zum Testen)</div>
+        <div class="speed" id="speed"></div>
+      </div>
+      <p class="hint">
+        Knoten anklicken schaltet ein Gebiet ab. Abgeschaltete Gebiete kühlen ab
+        und erholen sich im Preis. Mausrad zoomt, Ziehen verschiebt.
+      </p>
+    </div>
+    <script type="module" src="/src/ui/main.ts"></script>
+  </body>
+</html>

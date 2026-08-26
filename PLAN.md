@@ -56,7 +56,7 @@ M3 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-15): headless durchspielbar
   Mond/Mars (67 min) und interstellar (167 min) geglättet.
   ABNAHME: aktiv/idle beide zwischen 5 und 8 h, keine Stufe über 45 min.
 
-M4 - bis 2026-09-22: Karte
+M4 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-22): Karte
   Pixi-Karte, stufenloses Zoomen, Knoten mit Nachfrage/Preis/Hitze sichtbar,
   gekauftes Land eingefärbt.
   ABNAHME: Zoom von Stufe 0 bis 13 ohne Ruckeln und ohne Zahlenartefakte.

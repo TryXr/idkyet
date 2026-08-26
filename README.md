@@ -19,7 +19,7 @@ Eine Währung, kein Prestige, klares Ende nach rund fünf bis sieben Stunden.
 
 ## Stand
 
-Meilenstein M3 erreicht: Simulationskern läuft headless und deterministisch,
+Meilenstein M4 erreicht: Karte läuft, Simulationskern headless und deterministisch,
 mit Speichern, Laden, Offline-Fortschritt und Statthalter-Upgrades.
 
 ```
@@ -28,6 +28,7 @@ npm run sim        # Regressionslauf gegen die Design-Ziele
 npm test           # Speichern, Laden, Offline-Fortschritt
 npm run sweep      # Balance-Sweeps
 npm run typecheck
+npm run dev        # Karte im Browser
 ```
 
 ## Aufbau
