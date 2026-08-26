@@ -9,24 +9,26 @@
  */
 import { BALANCE } from './balance.js';
 
-export const SAVE_VERSION = 1;
+export const SAVE_VERSION = 2;
 
-export interface SaveV1 {
+export interface SaveV2 {
   v: number;
   savedAt: number;          // Wanduhr, fuer den Offline-Fortschritt
   time: number;             // gespielte Sekunden
   cash: string;             // Decimal als String - ueberlebt jede Groesse
   lifetime: string;
   level: number;
-  parcels: number;
-  owned: number[];
+  cook: number[];
+  sell: number[];
+  rooms: number[];
   storage: number;
   storageLevel: number;
-  pilotLevel: number;
+  pastRent: number;
+  targetId: number | null;
   seed: number;
   rngState: number;
-  /** Nur der veraenderliche Zustand der Knoten - der Rest kommt aus dem Seed. */
-  nodes: Array<{ p: number; h: number; lockedFor: number; priceMult: number; enabled: boolean }>;
+  /** Nur der Versorgungsstand - die Gebiete selbst kommen aus dem Seed. */
+  supplied: number[];
 }
 
 export interface StorageAdapter {
@@ -43,24 +45,36 @@ export class MemoryStorage implements StorageAdapter {
   clear(): void { this.payload = null; }
 }
 
+/** Ein Stand, der zu diesem Build nicht passt. Die Schale faengt das ab und
+ *  faengt neu an, statt mit einer weissen Seite dazustehen. */
+export class IncompatibleSaveError extends Error {}
+
 /**
  * Alte Staende auf die aktuelle Version heben.
- * Jede kuenftige Version bekommt hier einen eigenen Schritt - deshalb steht die
- * Versionsnummer von Anfang an im Format, auch wenn es erst eine gibt.
+ *
+ * Version 1 war das Marktmodell mit Preis, Hitze und Statthaltern (Tag
+ * `v1-marktmodell`). Daraus laesst sich kein Stand dieses Spiels ableiten -
+ * es gibt keine Gebiete, keine Ketten und keine Raeume darin. Solche Staende
+ * werden deshalb abgelehnt, nicht halb uebersetzt.
  */
-export function migrate(raw: unknown): SaveV1 {
-  if (typeof raw !== 'object' || raw === null) throw new Error('Speicherstand unlesbar');
-  const save = raw as Partial<SaveV1>;
+export function migrate(raw: unknown): SaveV2 {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new IncompatibleSaveError('Speicherstand unlesbar');
+  }
+  const save = raw as Partial<SaveV2>;
   const version = save.v ?? 0;
   if (version > SAVE_VERSION) {
-    throw new Error(`Speicherstand ist aus einer neueren Version (${version} > ${SAVE_VERSION})`);
+    throw new IncompatibleSaveError(
+      `Speicherstand ist aus einer neueren Version (${version} > ${SAVE_VERSION})`);
   }
-  // Kuenftig: if (version < 2) { ...auf 2 heben... }
-  return save as SaveV1;
+  if (version < SAVE_VERSION) {
+    throw new IncompatibleSaveError(`Speicherstand ist aus Version ${version} und passt nicht mehr`);
+  }
+  return save as SaveV2;
 }
 
 /** Vergangene Zeit seit dem Speichern, gedeckelt. */
-export function offlineSeconds(save: SaveV1, now = Date.now()): { seconds: number; capped: boolean } {
+export function offlineSeconds(save: SaveV2, now = Date.now()): { seconds: number; capped: boolean } {
   const elapsed = Math.max(0, (now - save.savedAt) / 1000);
   const capped = elapsed > BALANCE.offlineCapSeconds;
   return { seconds: Math.min(elapsed, BALANCE.offlineCapSeconds), capped };

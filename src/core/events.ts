@@ -6,13 +6,15 @@
  * Erfolge duerfen NIE im UI-Code entstehen (siehe CLAUDE.md, Architektur-Regel 4)
  * - sonst ist der Port Handarbeit.
  */
+import type { ChainKey } from './chains.js';
+
 export type GameEvent =
   | { type: 'levelUp'; level: number; at: number }
-  | { type: 'marketLocked'; nodeId: number; at: number }
-  | { type: 'siteBought'; tier: number; count: number; at: number }
-  | { type: 'milestoneReached'; tier: number; threshold: number; at: number }
-  | { type: 'pilotUpgraded'; pilotLevel: number; at: number }
-  | { type: 'landFull'; at: number }
+  /** Ein Gebiet ist zu 100 % versorgt und gehoert ab jetzt dir. */
+  | { type: 'territoryTaken'; level: number; id: number; name: string; rent: number; at: number }
+  | { type: 'roomBought'; tier: number; count: number; at: number }
+  | { type: 'unitBought'; chain: ChainKey; tier: number; count: number; at: number }
+  | { type: 'milestoneReached'; chain: ChainKey; tier: number; threshold: number; at: number }
   | { type: 'storageFull'; at: number }
   | { type: 'offlineProgress'; seconds: number; capped: boolean; at: number }
   | { type: 'finished'; at: number };

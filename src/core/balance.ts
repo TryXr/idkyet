@@ -2,133 +2,137 @@
  * ALLE Balancing-Konstanten an genau einer Stelle.
  * Begruendung und Herleitung jeder Zahl steht in BALANCING.md.
  *
- * Die zwei kritischen Verhaeltnisse (siehe PLAN.md, Risiken):
- *   outputTierMult / costTierMult  = 13.0 / 12   -> haelt die Kurve flach
- *   capMult        / outputTierMult = 12 / 13.0  -> verhindert Waende
- *   land.poolMult                  = 1.8        -> Land bindet wirklich
- * Wer hier dreht, muss den Regressionslauf (npm run sim) mitlaufen lassen.
+ * Das Spiel hat zwei Ketten und eine Landkarte:
+ *   KOCHEN       Arbeiter in Raeumen machen Ware.
+ *   VERKAUFEN    Verkaeufer setzen sie in einem Gebiet ab.
+ *   UEBERNEHMEN  Ein volles Gebiet gehoert dir und zahlt Rente.
+ *
+ * Raeume und Ketten sind mit FORMELN beschrieben, nicht als Tabelle von Hand.
+ * Vorher stand hier eine handgetippte Liste, in der jede Zeile einzeln falsch
+ * sein konnte - so laesst sich stattdessen die ganze Leiter mit einer Zahl
+ * verschieben und durchmessen (npm run sweep).
  */
 export const BALANCE = {
-  /** Marktdynamik. gamma > 1 ist der Kern des ganzen Spiels. */
-  market: {
-    kP: 0.030,       // Preisverfall pro Auslastung
-    rP: 0.0080,      // Preiserholung (~2 min)
-    gamma: 1.7,      // UEBERLINEAR: Fluten schadet, statt nur zu saettigen
-    kH: 0.0056,      // Hitzeaufbau
-    rH: 0.0125,      // Abkuehlung (~80 s Zeitkonstante)
-    lockSeconds: 120,
-    /** Physische Aufnahmegrenze eines Marktes, als Vielfaches der Nachfrage.
-     *  Ohne diese Grenze koennte man beliebig viel Ware in einer Sekunde
-     *  absetzen und Fluten waere folgenlos. */
-    maxIntakeMultiple: 3,
-  },
-
-  /** Streuung der Knoten. Ohne starke Streuung ist Gleichverteilung optimal
-   *  und aktives Spiel wertlos. */
-  spread: {
-    demandSigma: 1.5,
-    priceSigma: 1.0,
-    nodesPerLevel: 15,
-  },
-
-  /** Langsame Schwankung der Basispreise (mean-reverting um 1.0). */
-  volatility: { pull: 0.0100, sigma: 0.090, min: 0.25, max: 3.0 },
-
-  /** Herstellorte. */
-  production: {
-    costBase: 10,
-    costTierMult: 12,
-    costGrowth: 1.115,     // je bereits besessener Einheit derselben Art
-    outputBase: 0.10,
-    outputTierMult: 13.0,
-    milestones: [25, 50, 100, 200],
+  /**
+   * Die beiden Helfer-Ketten. Stufe 0 arbeitet, jede hoehere stellt die
+   * darunter ein - dadurch waechst die Produktion polynomial, waehrend die
+   * Kosten exponentiell steigen (der Genre-Motor, siehe CLAUDE.md).
+   */
+  chain: {
+    /** Einheiten je Sekunde, die eine Einheit der Stufe darueber einstellt. */
+    hireRate: 0.0004,
+    /** Jede weitere Einheit derselben Art kostet so viel mehr. */
+    costGrowth: 1.12,
+    /** Aufschlag je Kettenstufe. */
+    costTierMult: 55,
+    /** Meilensteine: x2 bei dieser Stueckzahl derselben Art. */
+    milestones: [25, 50, 100, 200, 400, 800, 1600, 3200],
     milestoneMult: 2,
   },
 
-  /** Land: endlich, Preis steigt mit der Knappheit. */
-  land: {
-    priceBase: 5,
-    parcelArea: 100,       // m2 je Parzelle
-    scarcityExp: 1.5,
-    pool0: 12,             // Parzellen auf Stufe 0
-    poolMult: 1.8,        // gemessen: darunter wuergt es das Spiel ab, darueber
-                          // ist Land bedeutungslos (siehe BALANCING.md)
+  /** Was Stufe 0 der jeweiligen Kette leistet. */
+  cook: {
+    /** Ein Junkie schafft die Qualitaet seines Raumes mal diesen Faktor. */
+    workRate: 1,
+    costBase: 8,
+  },
+  sell: {
+    /** Ware je Sekunde, die ein Dealer absetzt. */
+    sellRate: 0.4,
+    costBase: 14,
   },
 
-  /** Zoomstufen. */
+  /**
+   * Raeume: Plaetze und Qualitaet als Leiter.
+   * Ertrag eines Raumes = seats * quality, waechst also rund dreifach je Stufe.
+   */
+  rooms: {
+    seats0: 2,
+    seatsMult: 1.6,
+    quality0: 0.05,
+    qualityMult: 1.55,
+    cost0: 25,
+    costMult: 5.5,
+    /** Jedes weitere Exemplar derselben Art. */
+    costGrowth: 1.15,
+  },
+
+  /** Ein Klick von Hand - nur die erste Minute, danach uebernehmen Helfer. */
+  manual: {
+    /** Ware je Klick auf "kochen", als Vielfaches der besten Raumqualitaet. */
+    cookPortion: 8,
+    /** Ware je Klick auf "verkaufen", als Vielfaches der Dealer-Leistung. */
+    sellPortion: 12,
+  },
+
+  /** Zoomstufen: wie Bedarf, Preis und Rente mit der Stufe wachsen. */
   levels: {
-    cap0: 0.6,             // profitabel verkaufbare Ware/s auf Stufe 0
-    capMult: 12,
+    /** Gesamtbedarf aller Gebiete der Stufe 0, in Ware. */
+    demand0: 45,
+    demandMult: 15,
     /**
-     * Aufstiegskosten, gemessen in Sekunden Umsatz der aktuellen Stufe. Das ist
-     * zugleich die Dauer einer Stufe, denn ausgereizt ist sie lange vorher.
-     *
-     * Die ersten Stufen sind KURZ und wachsen dann bis zum Deckel. Vorher war
-     * jede Stufe gleich lang (27 min) - auch die allererste, in der man drei
-     * Knoepfe kennt und nichts zu entscheiden hat. Die Summe ueber alle Stufen
-     * bleibt fast gleich, das Spiel ist also nicht kuerzer, nur vorne schneller.
+     * Der Zuwachs je Stufe KLINGT AB. Frueh soll der Bedarf schneller wachsen
+     * als der Durchsatz (dadurch werden die Stufen laenger und gewichtiger),
+     * spaet langsamer - denn oben endet die Raumleiter und der Durchsatz
+     * waechst nicht mehr mit. Ohne dieses Abklingen dauerte die letzte Stufe
+     * gemessen bis zu 172 min, waehrend die erste 8 min brauchte.
      */
-    upgradeSeconds: 1800,  // Deckel: ~30 min Umsatz
-    upgradeSeconds0: 420,  // Straßenecke: ~7 min
-    upgradeRamp: 1.45,
+    demandDecay: 0.87,
+    /** Erloes je Ware auf Stufe 0. */
+    price0: 1.6,
+    priceMult: 3.2,
+    /**
+     * Rente: ein uebernommenes Gebiet zahlt seinen eigenen Wert in dieser Zeit
+     * noch einmal ab. Klein genug, dass Renten das Kochen nie ersetzen, gross
+     * genug, dass eine Uebernahme sich nach Besitz anfuehlt.
+     */
+    rentSeconds: 9000,
+    /** Gebiete je Stufe. */
+    perLevel: 15,
   },
 
-  /** Effektiver Erloes je Ware bei optimaler Auslastung u*.
-   *  Die Basispreise der Knoten werden so skaliert, dass das aufgeht. */
-  effectivePricePerWare: 12,
+  /** Streuung der Gebiete. Ohne sie waere die Zielwahl gleichgueltig. */
+  spread: {
+    demandSigma: 1.1,
+    priceSigma: 0.55,
+    rentSigma: 0.8,
+  },
 
   /** Lager: laeuft es ueber, stockt die Produktion (kein Verlust). */
-  /** Lager als Sekunden Produktionspuffer - dadurch skalenfrei. Laeuft es
-   *  ueber, stockt die Produktion (kein Verlust, nur Stillstand). */
-  storage: { bufferSeconds: 60, bufferPerLevel: 1.5, costBase: 200, costGrowth: 1.6 },
-
-  /** Statthalter-Stufen. Stufe 0 ist Handverkauf: am besten, aber man muss
-   *  dabei sein. S0 ist SCHLECHTER als Handverkauf - und trotzdem der
-   *  wichtigste Kauf im Spiel, weil er das Klicken beendet. */
-  pilots: [
-    { key: "s0", name: "Statthalter anstellen", cost: 400 },
-    { key: "s1", name: "Sperren meiden", cost: 15_000 },
-    { key: "s2", name: "Disziplin: Obergrenze & Preis-Vorrang", cost: 900_000 },
-    { key: "s3", name: "Marktbeobachtung", cost: 60_000_000 },
-  ],
+  storage: { bufferSeconds: 45, bufferPerLevel: 1.7, costBase: 120, costGrowth: 1.7 },
 
   offlineCapSeconds: 8 * 3600,
   tickSeconds: 1,
 };
 
 /**
- * Die 15 Herstellorte.
+ * Die beiden Ketten. Stufe 0 arbeitet, alle darueber stellen ein.
  *
- * `area` = Flaechenbedarf in m2. 0 heisst: braucht kein Land (Frachtschiff,
- * Orbitalstation) - das Ventil, wenn die Erde voll ist.
- *
- * `costMult` = Aufschlag auf die Stufenkosten. Orte, die dem Flaechenzwang
- * ausweichen, muessen SPUERBAR teurer sein. Ohne diesen Aufschlag ist
- * Landknappheit folgenlos: gemessen aenderte sich die Spieldauer nicht einmal
- * um eine Minute, wenn dem Spieler die halbe Welt fehlte - er wich einfach auf
- * Schiffe aus. Erst der Aufschlag macht "Land kaufen oder ausweichen?" zu einer
- * echten Entscheidung.
+ * Vier Stufen je Kette sind genug: die vierte laeuft erst im letzten Drittel
+ * an, und jede weitere waere nur eine Zahl mehr ohne neue Entscheidung.
  */
-export const SITES: ReadonlyArray<{ name: string; area: number; costMult: number }> = [
-  { name: 'Badezimmer',          area: 2,           costMult: 1 },
-  { name: 'Garage',              area: 8,           costMult: 1 },
-  { name: 'Wohnwagen',           area: 15,          costMult: 1 },
-  { name: 'Kellergeschoss',      area: 40,          costMult: 1.4 },  // dicht gebaut
-  { name: 'Lagerhalle',          area: 250,         costMult: 1 },
-  { name: 'Gewerbepark',         area: 900,         costMult: 1 },
-  { name: 'Stillgelegte Fabrik', area: 4_500,       costMult: 0.8 },  // billig pro Flaeche
-  { name: 'Farm / Gewächshaus',  area: 30_000,      costMult: 0.6 },  // Flaechenfresser
-  { name: 'Frachtschiff',        area: 0,           costMult: 9 },    // kein Land noetig
-  { name: 'Bergwerk',            area: 2_000,       costMult: 3 },    // kaum Oberflaeche
-  { name: 'Pharmawerk',          area: 60_000,      costMult: 1 },
-  { name: 'Raffinerie',          area: 400_000,     costMult: 0.8 },
-  { name: 'Orbitalstation',      area: 0,           costMult: 9 },    // kein Land noetig
-  { name: 'Mondbasis',           area: 1_000_000,   costMult: 1 },    // eigener Flaechenpool
-  { name: 'Asteroiden-Cluster',  area: 100_000_000, costMult: 0.7 },
+export const COOK_CHAIN: ReadonlyArray<string> = [
+  'Junkie', 'Koch', 'Chemiker', 'Professor',
 ];
 
+export const SELL_CHAIN: ReadonlyArray<string> = [
+  'Dealer', 'Straßenboss', 'Kartellchef', 'Pate',
+];
+
+/**
+ * Die Raeume. Nur die Namen stehen hier - Plaetze, Qualitaet und Preis kommen
+ * aus den Formeln oben. Die Reihe ist zugleich die Gag-Kurve des Spiels:
+ * Badezimmer bis Asteroiden-Cluster, und niemand kommentiert es.
+ */
+export const ROOM_NAMES: ReadonlyArray<string> = [
+  'Badezimmer', 'Garage', 'Wohnwagen', 'Kellergeschoss', 'Lagerhalle',
+  'Gewerbepark', 'Stillgelegte Fabrik', 'Farm / Gewächshaus', 'Frachtschiff',
+  'Bergwerk', 'Pharmawerk', 'Raffinerie', 'Orbitalstation', 'Mondbasis',
+  'Asteroiden-Cluster',
+];
+
+/** Die Zoomstufen. Namen der Gebiete stehen in content/places.ts. */
 export const LEVELS: ReadonlyArray<string> = [
-  'Straßenecke', 'Block', 'Stadt', 'Ballungsraum', 'Region', 'Land',
-  'Nachbarländer', 'Kontinent', 'Hemisphäre', 'Welt', 'Orbit', 'Mond & Mars',
-  'Äußeres System', 'Interstellar',
+  'Ruhrgebiet', 'Deutschland', 'Europa', 'Welt',
+  'Erdorbit', 'Mond & Mars', 'Äußeres System', 'Interstellar',
 ];

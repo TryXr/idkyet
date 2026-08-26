@@ -4,107 +4,144 @@
  * leicht unterschiedlich herum - dadurch massen die Werkzeuge verschiedene
  * Spiele.
  *
- * Wichtig: Land wird im SAMMELKAUF beschafft. Eine Parzelle pro Tick liess den
- * Spieler bis zu 53% einer Zoomstufe an der Flaeche haengen (siehe Diagnose).
+ * Der Kern der Politik ist ein Satz: KAUFE, WAS DEN ENGPASS LOEST.
+ * Der Durchsatz des Spiels ist min(Produktion, Absatz) - wer nur eine Seite
+ * ausbaut, produziert ins volle Lager oder laesst Dealer Daeumchen drehen.
+ * Deshalb wird jede Kaufoption danach bewertet, wie viel Durchsatz sie in den
+ * naechsten Minuten bringt, geteilt durch ihren Preis.
  */
 import type { Sim } from '../src/core/sim.js';
-import { siteArea, siteOutput } from '../src/core/production.js';
-import { isSellable, nodePrice } from '../src/core/market.js';
+import { BALANCE } from '../src/core/balance.js';
+import { TIERS } from '../src/core/chains.js';
+import { roomQuality, roomSeats } from '../src/core/rooms.js';
+import type { ChainKey } from '../src/core/chains.js';
+
+/** Zeithorizont, ueber den ein Kauf bewertet wird. */
+const HORIZON = 300;
 
 export interface AutoplayOptions {
-  /** Statthalter selbst kaufen. Fuer Messlaeufe aus, dort ist die Politik gesetzt. */
-  buyPilots?: boolean;
+  /** Von Hand kochen und verkaufen, solange noch keine Helfer da sind. */
+  useHands?: boolean;
 }
 
 export interface Decision {
-  kind: 'pilot' | 'levelUp' | 'storage' | 'site' | 'land' | 'wait';
+  kind: 'unit' | 'room' | 'storage' | 'hand' | 'wait';
+  chain?: ChainKey;
   tier?: number;
   count?: number;
-  /** Der gewuenschte Kauf scheiterte nur an fehlender Flaeche. */
-  areaBlocked?: boolean;
 }
 
 /**
- * Von Hand ausliefern, solange kein Statthalter angestellt ist.
- *
- * Gehoert hierher und nicht in die Simulation: es ist eine SPIELERHANDLUNG.
- * Ohne sie steht jeder Messlauf ohne Politik-Vorgabe still, denn im Handbetrieb
- * verkauft niemand ausser dem Spieler - genau das ist der Sinn der ersten
- * Minute. Geliefert wird ins lohnendste offene Gebiet.
+ * Wie viele Einheiten der Stufe 0 eine Einheit der Stufe k nach `seconds`
+ * herbeigefuehrt hat. Jede Stufe stellt die darunter ein, also ist das die
+ * k-fache Aufleitung: (rate * t)^k / k!.
  */
-export function handSell(sim: Sim): number {
-  if (sim.hasAutopilot()) return 0;
-  let best = -1;
-  let bestValue = -1;
-  for (const node of sim.nodes) {
-    if (!isSellable(node)) continue;
-    const value = nodePrice(node) * node.p * node.demand;
-    if (value > bestValue) { bestValue = value; best = node.id; }
-  }
-  return best >= 0 ? sim.deliver(best) : 0;
+function reachAfter(tier: number, seconds: number): number {
+  const x = BALANCE.chain.hireRate * seconds;
+  let value = 1;
+  for (let i = 1; i <= tier; i++) value *= x / i;
+  return value;
 }
 
+/** Qualitaet des besten Platzes, der gerade frei ist (0 = alles besetzt). */
+function freeSeatQuality(sim: Sim): number {
+  let left = sim.workers();
+  for (let tier = sim.rooms.length - 1; tier >= 0; tier--) {
+    const seats = (sim.rooms[tier] ?? 0) * roomSeats(tier);
+    if (seats <= 0) continue;
+    if (left < seats) return roomQuality(tier);
+    left -= seats;
+  }
+  return 0;
+}
+
+interface Option {
+  decision: Decision;
+  gain: number;   // zusaetzlicher Durchsatz in Ware/s
+  cost: number;
+}
+
+/**
+ * Von Hand arbeiten, solange keine Helfer da sind. Das ist die erste Minute
+ * des Spiels und gehoert deshalb auch in den Messlauf - ohne sie kaeme kein
+ * Durchlauf jemals in Gang.
+ */
+export function useHands(sim: Sim): boolean {
+  let did = false;
+  if (sim.cook[0]! < 1) { sim.cookByHand(); did = true; }
+  if (sim.sell[0]! < 1 && sim.storage > 0) { sim.sellByHand(); did = true; }
+  return did;
+}
+
+/**
+ * Eine Kaufentscheidung.
+ *
+ * Erst wird die SEITE gewaehlt (kochen oder verkaufen), dann auf dieser Seite
+ * das beste Angebot je Bargeld. Die Seitenwahl ist der ganze Witz: der
+ * Durchsatz ist min(Produktion, Absatz), also lohnt immer nur die schwaechere
+ * Haelfte.
+ *
+ * Frueher stand hier eine Bewertung ueber min(...) fuer alle Optionen
+ * gemeinsam. Die hatte einen toten Punkt: sind beide Seiten null, verbessert
+ * kein einzelner Kauf das Minimum, und der Messlauf kaufte NIE etwas - er
+ * klickte sechs Stunden von Hand. Der Fehler war nicht im Spiel, sondern im
+ * Messwerkzeug.
+ */
 export function decide(sim: Sim, opts: AutoplayOptions = {}): Decision {
-  handSell(sim);
-  if (opts.buyPilots && sim.buyPilot()) return { kind: 'pilot' };
+  // Haende benutzen und TROTZDEM weiter einkaufen. Vorher stand hier ein
+  // return: solange kein Junkie da war, wurde nur geklickt und nie einer
+  // gekauft - der Lauf haengte sechs Stunden in der ersten Minute fest.
+  if (opts.useHands !== false) useHands(sim);
 
-  // Maerkte ausgereizt: nichts mehr bauen, auf die naechste Stufe sparen.
-  if (sim.marketsSaturated()) {
-    return sim.levelUp() ? { kind: 'levelUp' } : { kind: 'wait' };
+  const cash = sim.cash;
+  const output = sim.output();
+  const absatz = sim.sellRate();
+
+  // Lager laeuft ueber und es liegt wirklich am Lager: dann zuerst das.
+  if (sim.storage >= sim.storageCap() * 0.95 && output > absatz) {
+    if (cash.gte(sim.storageCost()) && sim.buyStorage()) return { kind: 'storage' };
   }
 
-  if (sim.storage >= sim.storageCap() * 0.9 && sim.buyStorage()) {
-    return { kind: 'storage' };
-  }
+  const options: Option[] = [];
+  const add = (decision: Decision, gain: number, cost: number): void => {
+    if (gain > 0 && cost > 0 && cash.gte(cost)) options.push({ decision, gain, cost });
+  };
 
-  // Bestes Angebot nach Amortisation - erst ohne Ruecksicht auf die Flaeche,
-  // damit wir erkennen, ob nur Land fehlt.
-  let best = -1;
-  let bestPayback = Infinity;
-  for (let tier = 0; tier < sim.unlockedTiers(); tier++) {
-    const payback = sim.paybackSeconds(tier);
-    if (payback < bestPayback) { bestPayback = payback; best = tier; }
-  }
-  if (best < 0) return { kind: 'wait' };
-
-  const area = siteArea(best);
-
-  if (area > sim.freeArea()) {
-    // Gleich Flaeche fuer mehrere Einheiten kaufen, sonst wechselt der Spieler
-    // staendig zwischen einer Parzelle und einem Gebaeude hin und her.
-    const bought = sim.buyParcelsForArea(area * 25);
-    if (bought > 0) return { kind: 'land', count: bought, areaBlocked: true };
-
-    // Kein Land mehr zu haben: auf den besten Ort ausweichen, der noch passt.
-    // Genau das ist der Kipppunkt im Spiel - ab hier zaehlt Ertrag pro FLAECHE
-    // statt Ertrag pro Geld, und flaechenlose Orte (Frachtschiff,
-    // Orbitalstation) werden attraktiv.
-    let fallback = -1;
-    let fallbackPayback = Infinity;
-    for (let tier = 0; tier < sim.unlockedTiers(); tier++) {
-      if (siteArea(tier) > sim.freeArea()) continue;
-      const payback = sim.paybackSeconds(tier);
-      if (payback < fallbackPayback) { fallbackPayback = payback; fallback = tier; }
+  // Die schwaechere Haelfte ausbauen. Gleichstand zaehlt als Produktion, denn
+  // ohne Ware gibt es nichts zu verkaufen.
+  if (output <= absatz) {
+    const quality = freeSeatQuality(sim);
+    for (let tier = 0; tier < sim.unlockedTiers('cook'); tier++) {
+      const workers = reachAfter(tier, HORIZON);
+      add({ kind: 'unit', chain: 'cook', tier }, workers * quality,
+        sim.unitCost('cook', tier).toNumber());
     }
-    if (fallback < 0) return { kind: 'wait', areaBlocked: true };
-    best = fallback;
+    for (let tier = 0; tier < sim.unlockedRooms(); tier++) {
+      // Ein Raum bringt nur, was auch besetzt werden kann - jetzt oder bald.
+      const soon = sim.idle() + (sim.cook[1] ?? 0) * BALANCE.chain.hireRate * HORIZON;
+      const used = Math.min(roomSeats(tier), Math.max(soon, roomSeats(tier) * 0.2));
+      add({ kind: 'room', tier }, used * roomQuality(tier), sim.roomCost(tier).toNumber());
+    }
+  } else {
+    for (let tier = 0; tier < sim.unlockedTiers('sell'); tier++) {
+      const sellers = reachAfter(tier, HORIZON);
+      add({ kind: 'unit', chain: 'sell', tier }, sellers * BALANCE.sell.sellRate,
+        sim.unitCost('sell', tier).toNumber());
+    }
   }
 
-  if (sim.canBuySite(best)) {
-    // NICHT ueber die Kapazitaet der Stufe hinaus bauen. Was die Maerkte nicht
-    // aufnehmen, bleibt im Lager, stoppt die Produktion und ist damit totes
-    // Kapital. Ohne diese Bremse kaufte der Messlauf am Stufenanfang 25 Stueck
-    // auf einmal und lag danach beim 3.5-fachen dessen, was die Stufe abnimmt -
-    // ein Verhalten, das kein Spieler zeigen wuerde, der das Bedienfeld liest.
-    const room = sim.capacity() * 1.15 - sim.output().toNumber();
-    const perUnit = siteOutput(best).toNumber();
-    const byRoom = perUnit > 0 ? Math.floor(room / perUnit) : 25;
-    const count = Math.max(1, Math.min(sim.affordableSites(best), 25, byRoom));
-    const bought = sim.buySites(best, count);
-    if (bought > 0) return { kind: 'site', tier: best, count: bought };
+  if (options.length === 0) return { kind: 'wait' };
+
+  let best = options[0]!;
+  for (const option of options) {
+    if (option.gain / option.cost > best.gain / best.cost) best = option;
   }
 
-  return { kind: 'wait' };
+  switch (best.decision.kind) {
+    case 'unit': sim.buyUnit(best.decision.chain!, best.decision.tier!); break;
+    case 'room': sim.buyRoom(best.decision.tier!); break;
+  }
+  return best.decision;
 }
 
 /** Ticken und entscheiden, bis das Spiel durch ist oder die Zeit reicht. */
@@ -114,3 +151,5 @@ export function playThrough(sim: Sim, limitSeconds = 40 * 3600, opts: AutoplayOp
     decide(sim, opts);
   }
 }
+
+export { TIERS };
