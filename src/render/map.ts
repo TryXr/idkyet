@@ -10,19 +10,15 @@
  * 1e14 und die Fliesskomma-Genauigkeit waere lange dahin.
  */
 import { Application, Container, Graphics, Text, type FederatedPointerEvent } from 'pixi.js';
-import type { MarketNode } from '../core/market.js';
-import { isSellable, nodePrice } from '../core/market.js';
+import { fraction, type Territory } from '../core/territory.js';
 import { layoutLevel, type NodeLayout } from './layout.js';
 
 const COLORS = {
   background: 0x11131a,
-  crashed: 0xc2452f,   // Preis am Boden
-  fair: 0xd7a13b,      // mittel
-  rich: 0x4c9f6a,      // frischer Markt
-  heat: 0xe8623c,
-  locked: 0x3a3f4d,
-  disabled: 0x2a2e39,
-  outline: 0xf0f2f5,
+  empty: 0x2a2f3d,     // noch nichts geliefert
+  filling: 0x4c9f6a,   // Versorgungsbalken
+  owned: 0xd8b44a,     // uebernommen: gehoert dir
+  target: 0xf0f2f5,    // aktuelles Ziel
   parent: 0x232734,
 };
 
@@ -70,6 +66,7 @@ export class MapView {
 
   /** Laufende Lieferungen: Knoten-Id -> Restzeit des Signals in Sekunden. */
   private pulses = new Map<number, number>();
+  private targetId: number | null = null;
 
   /** Laufender Stufenwechsel. */
   private transition: { progress: number; onRebase: () => void } | null = null;
@@ -117,7 +114,7 @@ export class MapView {
   }
 
   /** Ebene aufbauen. Setzt den Ursprung zurueck - hier passiert das Umsetzen. */
-  setLevel(level: number, nodes: readonly MarketNode[]): void {
+  setLevel(level: number, territories: readonly Territory[]): void {
     this.level = level;
     for (const visual of this.visuals) {
       visual.body.destroy();
@@ -125,7 +122,7 @@ export class MapView {
     }
     this.visuals = [];
 
-    for (const layout of layoutLevel(level, this.seed, nodes)) {
+    for (const layout of layoutLevel(level, this.seed, territories)) {
       const body = new Graphics();
       body.eventMode = 'static';
       body.cursor = 'pointer';
@@ -170,7 +167,7 @@ export class MapView {
   }
 
   /** Jeden Frame aufrufen. `dt` in Sekunden. */
-  render(nodes: readonly MarketNode[], dt: number): void {
+  render(territories: readonly Territory[], dt: number): void {
     this.advanceTransition(dt);
     for (const [id, left] of this.pulses) {
       if (left <= dt) this.pulses.delete(id); else this.pulses.set(id, left - dt);
@@ -198,9 +195,9 @@ export class MapView {
 
     this.drawParentHalo(scale);
     for (const visual of this.visuals) {
-      const node = nodes[visual.layout.id];
-      if (!node) continue;
-      this.drawNode(visual, node, scale);
+      const territory = territories[visual.layout.id];
+      if (!territory) continue;
+      this.drawNode(visual, territory, scale);
     }
   }
 
@@ -224,57 +221,66 @@ export class MapView {
     this.parentHalo.stroke({ width: 1, color: COLORS.parent, alpha: 0.9 });
   }
 
-  private drawNode(visual: NodeVisual, node: MarketNode, scale: number): void {
+  /**
+   * Ein Gebiet zeichnen: ein Kreis, der sich fuellt.
+   *
+   * Der Fuellstand IST der Versorgungsbalken - kein Balken daneben, keine
+   * Prozentzahl noetig. Voll heisst uebernommen, und uebernommen bleibt es.
+   */
+  private drawNode(visual: NodeVisual, territory: Territory, scale: number): void {
     const { layout, body, label } = visual;
     const x = layout.x * scale;
     const y = layout.y * scale;
     const radius = Math.max(3, layout.radius * scale);
-
-    let fill: number;
-    if (node.lockedFor > 0) fill = COLORS.locked;
-    else if (!node.enabled) fill = COLORS.disabled;
-    else fill = mix(COLORS.crashed, COLORS.rich, node.p);
-    if (node.enabled && node.lockedFor <= 0 && node.p > 0.55) {
-      fill = mix(COLORS.fair, COLORS.rich, (node.p - 0.55) / 0.45);
-    }
+    const filled = fraction(territory);
 
     body.clear();
+    // Grundflaeche: was noch fehlt.
     body.circle(x, y, radius);
-    body.fill({ color: fill, alpha: isSellable(node) ? 1 : 0.55 });
+    body.fill({ color: COLORS.empty, alpha: 0.9 });
 
-    // Hitze als Ring aussen herum.
-    if (node.h > 0.02) {
-      body.circle(x, y, radius + 3);
-      body.stroke({ width: 1 + 3 * node.h, color: COLORS.heat, alpha: 0.25 + 0.6 * node.h });
+    // Fuellstand als Scheibe von unten - so ist der Fortschritt auch bei
+    // winzigen Gebieten noch zu erkennen.
+    if (filled > 0) {
+      const inner = radius * Math.sqrt(filled);
+      body.circle(x, y, inner);
+      body.fill({ color: territory.owned ? COLORS.owned : COLORS.filling, alpha: 1 });
     }
-    if (node.lockedFor > 0) {
-      body.circle(x, y, radius + 7);
-      body.stroke({ width: 1, color: COLORS.heat, alpha: 0.8 });
+
+    if (territory.owned) {
+      body.circle(x, y, radius + 2);
+      body.stroke({ width: 2, color: COLORS.owned, alpha: 0.8 });
     }
-    if (!node.enabled) {
-      body.circle(x, y, radius);
-      body.stroke({ width: 2, color: COLORS.outline, alpha: 0.35 });
+
+    // Das aktuelle Ziel bekommt einen hellen Ring.
+    if (this.targetId === territory.id) {
+      body.circle(x, y, radius + 6);
+      body.stroke({ width: 2, color: COLORS.target, alpha: 0.9 });
     }
 
     // Lieferung: ein Ring, der nach aussen laeuft und verblasst.
-    const pulse = this.pulses.get(node.id);
+    const pulse = this.pulses.get(territory.id);
     if (pulse !== undefined) {
       const grow = 1 - pulse / 0.45;
       body.circle(x, y, radius + 4 + 14 * grow);
-      body.stroke({ width: 2, color: COLORS.outline, alpha: 0.7 * (1 - grow) });
+      body.stroke({ width: 2, color: COLORS.target, alpha: 0.7 * (1 - grow) });
     }
 
     // Beschriftung erst ab genug Platz, sonst wird es Matsch.
-    const showLabel = radius > 22;
+    const showLabel = radius > 18;
     label.visible = showLabel;
     if (showLabel) {
-      label.text = node.lockedFor > 0
-        ? `gesperrt ${Math.ceil(node.lockedFor)}s`
-        : `${Math.round(node.p * 100)}%`;
+      label.text = territory.owned
+        ? territory.name
+        : `${territory.name}\n${Math.round(filled * 100)} %`;
       label.position.set(x, y);
-      label.style.fontSize = Math.min(15, Math.max(10, radius * 0.34));
+      label.style.fontSize = Math.min(14, Math.max(9, radius * 0.28));
     }
-    void nodePrice;
+  }
+
+  /** Welches Gebiet gerade beliefert wird - bekommt einen Ring. */
+  setTarget(id: number | null): void {
+    this.targetId = id;
   }
 
   resize(): void {

@@ -16,6 +16,9 @@ export const ZERO: Num = new Decimal(0);
 /** Kompakte Ausgabe fuer Konsole und UI. */
 export function fmt(v: Num | number, digits = 2): string {
   const d = typeof v === 'number' ? new Decimal(v) : v;
+  // Kleine Betraege duerfen nicht zu "0.00" werden: eine Rente von 0.0006 je
+  // Sekunde ist wenig, aber sie ist da, und der Spieler soll sie sehen.
+  if (d.gt(0) && d.lt(0.01)) return d.toFixed(4);
   if (d.lt(1000)) return d.toFixed(d.lt(10) ? digits : 0);
   const e = Math.floor(d.log10());
   const suffixes = ['', 'k', 'M', 'Mrd', 'Bio', 'Brd', 'Trio'];

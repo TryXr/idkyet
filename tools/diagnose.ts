@@ -1,38 +1,36 @@
 /**
- * Diagnose: Wo geht die Zeit hin? Pro Zoomstufe wird aufgeschluesselt, womit
- * der Spieler sie verbringt - kaufen, sparen, oder an der Flaeche haengen.
+ * Diagnose: Wo geht die Zeit hin? Pro Zoomstufe wird aufgeschluesselt, wie
+ * lange sie dauert, was der Spieler dort kauft und wo der Engpass liegt.
  *
  * Benutzt bewusst DENSELBEN Autoplay wie Regressionslauf und Sweep. Eine eigene
- * Kaufpolitik hier hat schon einmal ein voellig anderes Spiel gemessen (Stillstand
- * bei Stufe 6, waehrend der Regressionslauf sauber durchlief).
+ * Kaufpolitik hier hat schon einmal ein voellig anderes Spiel gemessen.
  */
 import { Sim } from '../src/core/sim.js';
-import { levelName, maxLevel } from '../src/core/world.js';
+import { levelDemand, levelName, maxLevel } from '../src/core/world.js';
 import { fmt } from '../src/core/numbers.js';
-import { siteName } from '../src/core/production.js';
-import { ownedFraction, parcelPool } from '../src/core/land.js';
+import { roomName } from '../src/core/rooms.js';
 import { decide } from './autoplay.js';
 
 interface LevelStats {
   seconds: number;
-  siteBuys: number;
-  sitesBought: number;
-  landBuys: number;
-  parcelsBought: number;
-  storageBuys: number;
-  savingSeconds: number;      // Maerkte voll, es wird auf den Aufstieg gespart
-  areaBlockedSeconds: number; // gewuenschter Kauf scheitert an der Flaeche
-  topTier: number;
-  landFractionEnd: number;
+  unitBuys: number;
+  roomBuys: number;
+  waits: number;
+  /** Sekunden, in denen die Produktion der Engpass war. */
+  cookBound: number;
+  outputEnd: number;
+  sellEnd: number;
+  rentEnd: number;
+  topRoom: number;
 }
 
 const empty = (): LevelStats => ({
-  seconds: 0, siteBuys: 0, sitesBought: 0, landBuys: 0, parcelsBought: 0,
-  storageBuys: 0, savingSeconds: 0, areaBlockedSeconds: 0, topTier: 0, landFractionEnd: 0,
+  seconds: 0, unitBuys: 0, roomBuys: 0, waits: 0, cookBound: 0,
+  outputEnd: 0, sellEnd: 0, rentEnd: 0, topRoom: 0,
 });
 
 const stats: LevelStats[] = Array.from({ length: maxLevel() + 1 }, empty);
-const sim = new Sim({ seed: 1, pilot: 'human' });
+const sim = new Sim({ seed: 1 });
 
 while (!sim.finished && sim.time < 40 * 3600) {
   const level = sim.level;
@@ -40,38 +38,37 @@ while (!sim.finished && sim.time < 40 * 3600) {
   sim.tick();
   s.seconds++;
 
-  const decision = decide(sim, { buyPilots: true });
-  if (decision.areaBlocked) s.areaBlockedSeconds++;
-  switch (decision.kind) {
-    case 'site':
-      s.siteBuys++;
-      s.sitesBought += decision.count ?? 1;
-      s.topTier = Math.max(s.topTier, decision.tier ?? 0);
-      break;
-    case 'land':
-      s.landBuys++;
-      s.parcelsBought += decision.count ?? 1;
-      break;
-    case 'storage': s.storageBuys++; break;
-    case 'wait': s.savingSeconds++; break;
+  const decision = decide(sim);
+  if (decision.kind === 'unit') s.unitBuys++;
+  else if (decision.kind === 'room') s.roomBuys++;
+  else if (decision.kind === 'wait') s.waits++;
+
+  if (sim.output() <= sim.sellRate()) s.cookBound++;
+  s.outputEnd = sim.output();
+  s.sellEnd = sim.sellRate();
+  s.rentEnd = sim.rentPerSecond();
+  for (let tier = 0; tier < sim.rooms.length; tier++) {
+    if ((sim.rooms[tier] ?? 0) > 0) s.topRoom = tier;
   }
-  s.landFractionEnd = ownedFraction(sim.parcels, parcelPool(level));
 }
 
-console.log('Stufe             Dauer  Kaeufe   Orte    Land  Lager  sparen  Flaeche  Landbesitz  hoechster Ort');
+console.log('Stufe             Dauer  Kaeufe  Raeume  warten  kochbegrenzt   Ware/s   Absatz/s     Rente/s  Bedarf   bester Raum');
 for (let level = 0; level <= maxLevel(); level++) {
   const s = stats[level]!;
   if (s.seconds === 0) continue;
-  const pct = (v: number) => `${((100 * v) / s.seconds).toFixed(0)}%`.padStart(7);
+  const pct = (v: number) => `${((100 * v) / s.seconds).toFixed(0)}%`.padStart(6);
   console.log(
     `${String(level).padStart(2)} ${levelName(level).padEnd(15)}` +
     `${(s.seconds / 60).toFixed(0).padStart(5)}m` +
-    `${String(s.siteBuys).padStart(8)}` +
-    `${String(s.sitesBought).padStart(7)}` +
-    `${String(s.parcelsBought).padStart(8)}` +
-    `${String(s.storageBuys).padStart(7)}` +
-    `${pct(s.savingSeconds)}${pct(s.areaBlockedSeconds)}` +
-    `${(s.landFractionEnd * 100).toFixed(1).padStart(10)}%` +
-    `  ${siteName(s.topTier)}`);
+    `${String(s.unitBuys).padStart(8)}` +
+    `${String(s.roomBuys).padStart(8)}` +
+    `${pct(s.waits)}` +
+    `${pct(s.cookBound)}       ` +
+    `${fmt(s.outputEnd).padStart(9)}` +
+    `${fmt(s.sellEnd).padStart(11)}` +
+    `${fmt(s.rentEnd).padStart(12)}` +
+    `${fmt(levelDemand(level)).padStart(8)}` +
+    `  ${roomName(s.topRoom)}`);
 }
-console.log(`\nGesamt ${(sim.time / 3600).toFixed(2)} h, Bargeld ${fmt(sim.cash)}, Parzellen ${sim.parcels}`);
+console.log(`\nGesamt ${(sim.time / 3600).toFixed(2)} h, Bargeld ${fmt(sim.cash)},` +
+  ` Rente ${fmt(sim.rentPerSecond())}/s, ${sim.finished ? 'durchgespielt' : 'ABGEBROCHEN'}`);

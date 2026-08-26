@@ -1,33 +1,31 @@
 /**
- * Knotenbaum, prozedural aus einem Seed. Selbstaehnlich: eine Strassenecke und
- * ein Sonnensystem laufen durch denselben Code, nur die Zahlen und das Label
- * unterscheiden sich.
+ * Die Zoomstufen und ihre Gebiete.
  *
- * Die Knoten einer Stufe werden so erzeugt, dass ihre Gesamtkapazitaet exakt
- * der geplanten Stufenkapazitaet aus BALANCING.md entspricht. Dadurch stimmt
- * das Detailmodell mit dem gerechneten Zeitplan ueberein.
+ * Selbstaehnlich: ein Stadtteil und ein Sternsystem laufen durch denselben
+ * Code, nur Zahlen und Name unterscheiden sich. Die Namen sind handgeschrieben
+ * (content/places.ts), die Zahlen kommen aus dem Seed - die Liste gibt das
+ * Thema, der Seed die Streuung.
+ *
+ * Normalisiert wird so, dass der Gesamtbedarf einer Stufe exakt der geplanten
+ * Zahl aus BALANCING.md entspricht. Dadurch stimmt das Detailmodell mit dem
+ * gerechneten Zeitplan ueberein.
  */
 import { BALANCE, LEVELS } from './balance.js';
 import { CONFIG } from './config.js';
-import { createNode, OPTIMAL_UTILISATION, PRICE_AT_OPTIMUM, type MarketNode } from './market.js';
+import { placeName } from '../content/places.js';
+import { createTerritory, type Territory } from './territory.js';
 import { Rng } from './rng.js';
 
-/** Profitabel verkaufbare Ware/s auf einer Stufe. */
-export const levelCapacity = (level: number): number =>
-  BALANCE.levels.cap0 * Math.pow(BALANCE.levels.capMult, level);
+/** Gesamtbedarf aller Gebiete einer Stufe, in Ware. */
+export function levelDemand(level: number): number {
+  const { demand0, demandMult, demandDecay } = BALANCE.levels;
+  // Produkt der abklingenden Zuwaechse: 11.5, dann 11.5*0.93, dann *0.93^2 ...
+  return demand0 * Math.pow(demandMult, level) * Math.pow(demandDecay, level * (level - 1) / 2);
+}
 
-/**
- * Wie viele Sekunden Umsatz der Aufstieg von dieser Stufe kostet.
- * Steigt von einer sehr kurzen ersten Stufe bis zum Deckel - siehe balance.ts.
- */
-export const upgradeSeconds = (level: number): number => Math.min(
-  BALANCE.levels.upgradeSeconds,
-  BALANCE.levels.upgradeSeconds0 * Math.pow(BALANCE.levels.upgradeRamp, level),
-);
-
-/** Kosten, um die naechste Stufe zu erschliessen. */
-export const levelUpCost = (level: number): number =>
-  levelCapacity(level) * BALANCE.effectivePricePerWare * upgradeSeconds(level);
+/** Mittlerer Erloes je Ware auf dieser Stufe. */
+export const levelPrice = (level: number): number =>
+  BALANCE.levels.price0 * Math.pow(BALANCE.levels.priceMult, level);
 
 export const levelName = (level: number): string =>
   LEVELS[Math.min(level, LEVELS.length - 1)] ?? `Stufe ${level}`;
@@ -36,23 +34,35 @@ export const levelName = (level: number): string =>
 export const maxLevel = (): number => Math.min(CONFIG.maxLevel, LEVELS.length - 1);
 
 /**
- * Die Knoten einer Stufe erzeugen.
- * Normalisierung: Summe(demand * u*) = Stufenkapazitaet, und der mittlere
- * effektive Erloes bei optimaler Auslastung trifft effectivePricePerWare.
+ * Die Gebiete einer Stufe erzeugen.
+ *
+ * Bedarf und Preis streuen stark und UNABHAENGIG voneinander - erst dadurch
+ * gibt es lohnende und undankbare Ziele, und erst dadurch lohnt sich die
+ * Zielwahl gegenueber dem Autopiloten.
  */
-export function generateLevel(level: number, seed: number): MarketNode[] {
+export function generateLevel(level: number, seed: number): Territory[] {
   const rng = new Rng(seed * 7919 + level * 104729 + 1);
-  const count = BALANCE.spread.nodesPerLevel;
+  const count = BALANCE.levels.perLevel;
 
   const rawDemand = Array.from({ length: count }, () => rng.logNormal(BALANCE.spread.demandSigma));
   const rawPrice = Array.from({ length: count }, () => rng.logNormal(BALANCE.spread.priceSigma));
+  const rawRent = Array.from({ length: count }, () => rng.logNormal(BALANCE.spread.rentSigma));
 
   const demandSum = rawDemand.reduce((a, b) => a + b, 0);
-  const demandScale = levelCapacity(level) / (OPTIMAL_UTILISATION * demandSum);
+  const demandScale = levelDemand(level) / demandSum;
 
   const priceMean = rawPrice.reduce((a, b) => a + b, 0) / count;
-  const priceScale = BALANCE.effectivePricePerWare / (PRICE_AT_OPTIMUM * priceMean);
+  const priceScale = levelPrice(level) / priceMean;
 
-  return rawDemand.map((d, i) =>
-    createNode(i, d * demandScale, (rawPrice[i] ?? 1) * priceScale));
+  const rentMean = rawRent.reduce((a, b) => a + b, 0) / count;
+
+  return rawDemand.map((d, i) => {
+    const demand = d * demandScale;
+    const price = (rawPrice[i] ?? 1) * priceScale;
+    // Die Rente haengt am Wert des Gebiets, streut aber eigenstaendig: manche
+    // Staedte zahlen besser, als ihre Groesse vermuten laesst.
+    const worth = demand * price;
+    const rent = worth / BALANCE.levels.rentSeconds * ((rawRent[i] ?? 1) / rentMean);
+    return createTerritory(i, placeName(level, i), demand, price, rent);
+  });
 }

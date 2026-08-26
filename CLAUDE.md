@@ -87,150 +87,138 @@ gezeigt hat, ist tot.
 - Konsolen-/Headless-Prototyp vor UI erzwingt saubere Trennung.
 - Früh in r/incremental_games testen lassen.
 
-## Konzept (entschieden am 2026-08-25)
+## Konzept (neu gefasst am 2026-08-26)
 
-Thema: Drogenhandel-Ökonomie, Vorbild Dr. Meth. Kein Pilz-Thema (verworfen).
+Thema: Drogenhandel-Ökonomie. Kein Pilz-Thema (verworfen).
 
 Produktion bleibt abstrakt: Ertrag und Durchsatz sind Zahlen und
 Balancing-Parameter. Keine reale Chemie, keine Syntheseanleitungen im Spiel,
 in den Texten oder im Code.
 
+WICHTIG: Dieses Konzept ersetzt das ursprüngliche Marktmodell (Preisverfall,
+Hitze, Marktsperren, Statthalter-Politiken). Der Stand davon liegt als Tag
+`v1-marktmodell` im Repo. Warum der Wechsel: dort war jeder Fortschritt nur
+geliehen — ein bedienter Markt brannte aus und zwang zum Weiterziehen. Das neue
+Modell BEHÄLT Fortschritt: ein versorgtes Gebiet gehört dir und zahlt dauerhaft.
+Das ist das befriedigendere Gefühl und der klassische Genre-Motor.
+
 ### Kernsatz
 
-Jeder Markt, den du bedienst, brennt aus - also musst du immer weiter.
+Du kochst, du verkaufst, du übernimmst — Stadt für Stadt, bis dir die Welt
+gehört.
 
 ### Drei Grundregeln
 
-1. PRODUZIEREN: Herstellorte liefern Ware/Sekunde.
-2. VERKAUFEN: Verkauf in einem Markt senkt dort den Preis und hebt die Hitze.
-   Beides erholt sich nur, solange dieser Markt in Ruhe gelassen wird.
-3. EXPANDIEREN: Frische Märkte sind unverbrannt, aber weiter weg
-   (teurer/riskanter im Transport).
+1. KOCHEN: Arbeiter machen in deinen Räumen Ware. Der Raum bestimmt die
+   Qualität (Badezimmer wenig, Labor viel), der Arbeiter die Menge.
+2. VERKAUFEN: Verkäufer setzen die Ware in einem Gebiet ab. Das füllt dort den
+   Versorgungsbalken und bringt Bargeld.
+3. ÜBERNEHMEN: Ein Gebiet bei 100 % gehört dir für immer und zahlt ab da
+   passiv — jedes unterschiedlich viel. Sind alle Gebiete einer Ebene deins,
+   zoomt die Karte heraus und die nächstgrößere Ebene liegt offen.
 
-Die Expansion ist damit KEIN Menüpunkt, sondern Folge von Regel 2.
+Alles Weitere folgt daraus. Es gibt keine vierte Regel.
 
-### Maßstab: fließend, nicht in Kapiteln
+### Die beiden Knöpfe und wie sie verschwinden
 
-Vom Nutzer am 2026-08-25 korrigiert: Stadt/Land/Kontinent waren nur Beispiele.
-Es soll ein FLIESSENDER Übergang mit MEHR Stufen sein, keine 5 harten Akte.
+Zu Beginn drückt der Spieler selbst: ein Knopf kocht eine Portion, ein zweiter
+verkauft sie. Beide Knöpfe werden im Lauf des Spiels von Helfern übernommen —
+das ist der eigentliche Fortschritt, nicht die Zahl auf dem Konto.
 
-Umsetzung: EINE durchgehende Karte, die mit wachsender Reichweite kontinuierlich
-herauszoomt. Märkte sind ein Baum aus Knoten; jeder Knoten verhält sich nach
-denselben Regeln (Nachfrage, Preis, Hitze, Erholung) - nur das Label ändert sich.
-Selbstähnlich, dadurch ein einziger Code-Pfad für Straßenecke bis Sonnensystem.
-Kein Level-Up-Screen, die Kamera zoomt einfach weiter raus.
+ZWEI KETTEN, denn Kochen und Verkaufen sind zwei verschiedene Engpässe:
 
-Stufenentwurf (~13, je ca. 25-40 min -> 5-8 h gesamt):
-Straßenecke, Block, Stadt, Ballungsraum, Region, Land, Nachbarländer,
-Kontinent, Hemisphäre, Welt, Orbit, Mond/Mars, äußeres System, interstellar (Ende).
+    KOCHEN     Junkie   -> macht Ware
+               Koch     -> stellt Junkies ein
+               Chemiker -> stellt Köche ein
 
-Neue Mechaniken werden über diese Stufen VERTEILT eingeführt (ca. alle 2 Stufen
-eine), nicht in großen Kapitelblöcken.
+    VERKAUFEN  Dealer       -> verkauft Ware
+               Straßenboss  -> stellt Dealer ein
+               Kartellchef  -> stellt Straßenbosse ein
+
+Jede Stufe erzeugt die Stufe DARUNTER, nicht Ware direkt. Dadurch wächst die
+Produktion polynomial (die zweite Stufe ist die Ableitung der ersten), während
+die Kosten exponentiell steigen — genau der Motor aus dem Abschnitt
+"Mathematischer Kern". Und es erklärt sich von selbst: ein Kartellchef kocht
+nichts, er stellt Leute ein.
+
+Der Spieler sieht dadurch immer, welche Hälfte klemmt: Lager voll heißt zu
+wenig Verkäufer, Lager leer heißt zu wenig Arbeiter.
+
+### Räume und Arbeiter
+
+Arbeiter brauchen einen Platz. Räume (Badezimmer, Garage, Wohnwagen, Keller,
+Lagerhalle … bis Labor und Raffinerie) bieten PLÄTZE und bestimmen die
+QUALITÄT, also den Ertrag je Arbeiter.
+
+Zuteilung passiert automatisch und immer in den besten freien Raum — der
+Spieler soll nicht Leute auf Zimmer verteilen. Die einzige Entscheidung ist
+"mehr Räume oder mehr Arbeiter?", und die stellt sich von allein: zu viele
+Arbeiter stehen sichtbar herum, zu viele Räume stehen leer.
+
+QUALITÄT IST KEIN EIGENER HEBEL. Sie steckt im Raum, ist eine Zahl im
+Ertrag und hat kein eigenes Menü (entschieden am 2026-08-26, dieselbe
+Begründung wie beim gestrichenen Reinheits-System).
+
+### Gebiete, Versorgung und Übernahme
+
+Jedes Gebiet hat drei Zahlen: BEDARF (wie viel Ware bis 100 %), PREIS je Ware
+und RENTE (was es nach der Übernahme dauerhaft zahlt). Alle drei streuen stark —
+Duisburg ist nicht Düsseldorf.
+
+Verkaufte Ware füllt den Versorgungsbalken. Bei 100 % ist das Gebiet
+übernommen: der Balken bleibt voll, es zahlt ab sofort seine Rente und ist als
+Absatzmarkt erledigt. Kein Rückfall, keine Vernachlässigung, kein Verfall — was
+dir gehört, bleibt dir.
+
+Daraus entsteht die Zielwahl von selbst: Ein großes Gebiet zahlt mehr Rente,
+braucht aber lange; ein kleines ist schnell deins. Wer klug wählt, kommt
+schneller voran — ohne dass eine Regel dafür nötig wäre.
+
+### Ebenen: echte Orte, herauszoomende Karte
+
+Gespielt wird auf EINER durchgehenden Karte mit rund 15 Gebieten je Ebene.
+Sind alle übernommen, zoomt sie heraus, und dieselben Regeln gelten für die
+nächstgrößere Einheit. Selbstähnlich, ein Code-Pfad für Straßenzug bis Sternbild.
+
+    0  Ruhrgebiet          Duisburg, Oberhausen, Essen, Dortmund …
+    1  Deutschland         Köln, Hamburg, München, Berlin …
+    2  Europa              Niederlande, Italien, Polen, Spanien …
+    3  Welt                Nordamerika, Ostasien, Westafrika …
+    4  Erdorbit            Bahnen und Stationen
+    5  Mond & Mars         Siedlungen
+    6  Äußeres System      Ganymed, Titan, Ceres …
+    7  Interstellar        Proxima Centauri, Wolf 359, Trappist-1 …
+
+Start ist Duisburg. Echte Namen, weil der Witz in der Beiläufigkeit sitzt: die
+Lieferfrist nach Ganymed wird genauso sachlich besprochen wie die nach Essen.
+Die Namenslisten sind handgeschrieben (rund 120 Einträge), aber es sind Listen,
+kein Fließtext — der Deckel für Stimmen-Texte gilt davon unberührt.
 
 ### Idle vs. aktiv
 
-Vom Nutzer am 2026-08-25 festgelegt: Grundmodus ist Idlen, aber aktives Spielen
-soll sich lohnen.
+Grundmodus ist Idlen. Aktives Spiel lohnt sich durch die ZIELWAHL: Der Spieler
+bestimmt, welches Gebiet gerade beliefert wird. Der Autopilot nimmt stur das
+nächstbeste; wer selbst wählt, nimmt das mit dem besten Verhältnis aus Bedarf
+und Rente. Kein Zusatzsystem, nur eine Folge von Regel 3.
 
-Lösung ohne Zusatzsystem: Automatisierung ist eine POLITIK, und die
-Standard-Politik ist bewusst mittelmäßig (z. B. "gleichmäßig überall verkaufen").
-Ein aufmerksamer Spieler rotiert Märkte im richtigen Moment und schlägt den
-Autopiloten. Upgrades verbessern die Auto-Politik, schließen die Lücke aber nie
-ganz.
+Zielwert wie bisher: aktiv ca. 1.5 bis 2x Idle-Rate.
 
-Zielwert: aktiv ca. 2x Idle-Rate. Genug, dass es sich lohnt; wenig genug, dass
-Idlen nicht wie Bestrafung wirkt.
+### Was aus dem alten Konzept bleibt
 
-### Land & Fläche (ergänzt am 2026-08-25)
+- Eine Währung (Bargeld) plus Ware als Ressource. Kein Prestige.
+- Lager mit Obergrenze: läuft es über, stockt die Produktion (kein Verlust).
+- Offline-Fortschritt, Cap 8 h.
+- Klares Ende: alles übernommen, die Stimmen sind zufrieden, Schlussbilanz.
+- Ton, Stimmen und Figuren (Buchhalter, Prophetin, Kevin) unverändert.
+- Spiellänge 5-8 h.
 
-Vom Nutzer gefordert: Mit Geld wird LAND gekauft, um Herstellorte zu bauen.
-Orte verbrauchen unterschiedlich viel Geld UND Fläche. Land ist ENDLICH -
-irgendwann gehört einem die Welt zu 100%.
+### Was ersatzlos gestrichen ist
 
-Fläche ist KEINE dritte Währung, sondern eine Kapazität, die mit Bargeld gekauft
-wird. v1 hat GENAU EINE Währung: Bargeld.
+- Preisverfall und Preiserholung je Markt (kP, rP, gamma).
+- Hitze und Marktsperren.
+- Statthalter-Politiken S0-S3 (ersetzt durch die beiden Helfer-Ketten).
+- Land als Parzellen-Fläche (ersetzt durch Plätze in Räumen).
 
-Doppelnutzung der Karte (wichtig fürs Leitprinzip): Dieselben Baumknoten sind
-Markt UND Territorium. Ein gekaufter Knoten liefert Baufläche und senkt dort
-zusätzlich die Hitze. Ein Kauf, zwei Wirkungen, keine neue Struktur.
-
-Landpreis steigt mit der Knappheit (Preis pro Knoten wächst exponentiell mit der
-Zahl der bereits gekauften). Knotenzahl ist endlich -> 100% ist erreichbar, aber
-die letzten Prozent sind teuer. 100% Erde = großer Meilenstein, NICHT das Ende.
-
-Zentrale Design-Spannung: früh ist Land billig und Geld knapp -> man optimiert
-ERTRAG PRO GELD (flächenfressende, billige Orte). Spät ist Land aus -> man
-optimiert ERTRAG PRO FLÄCHE und muss verdichten. Die optimale Baureihenfolge
-kippt im Spielverlauf. Das entsteht aus der Regel, ist nicht geskriptet.
-
-Das Flächenlimit ist der GRUND fürs Weltall-Endgame: See, Untergrund, Orbit und
-Mond sind Ausweichventile, die neue Flächen-Pools öffnen, wenn die Erde voll ist.
-
-Herstellorte (Entwurf, 15 Stück, aufsteigend):
- 1  Badezimmer          winzige Fläche, trivialer Preis, lächerlicher Ertrag (Start)
- 2  Garage/Hinterzimmer sehr klein, billig
- 3  Wohnwagen           klein, MOBIL - kann umziehen, Hitze bleibt zurück
- 4  Kellergeschoss      klein, mittel - dicht, gut bei Platzmangel
- 5  Lagerhalle          mittel/mittel - Brot und Butter
- 6  Gewerbepark         mittel, mittel-hoch
- 7  Stillgelegte Fabrik groß, mittel - billig pro Fläche
- 8  Farm/Gewächshaus    sehr groß, billig pro Fläche - max. Ertrag pro Geld
- 9  Frachtschiff        auf See - braucht KEINE Landfläche, teuer
-10  Bergwerk/Bunker     unterirdisch - wenig Oberfläche, teuer
-11  Pharmawerk (getarnt) groß, sehr teuer, niedrige Hitze
-12  Raffinerie-Komplex  riesig, sehr teuer - Endstufe auf der Erde
-13  Orbitalstation      keine Erdfläche, extrem teuer
-14  Mondbasis           öffnet neuen Flächen-Pool
-15  Asteroiden-Cluster  riesige Fläche, Endgame
-
-GESTRICHEN: Reinheit als eigener Hebel. Redundant zum Ertrags-Multiplikator und
-verstößt gegen "im Zweifel streichen". Ertrag bleibt eine Zahl.
-
-### Entschieden am 2026-08-25 (Runde 2)
-
-HITZE-MAXIMUM: Der Markt SPERRT SICH ZEITWEISE. Kein Verkauf mehr in diesem
-Knoten, die Hitze kühlt langsam ab, danach ist er wieder nutzbar. Kein Verlust
-von Besitz oder Bauten -> verträgt sich mit "kein Fail-State", erzeugt aber genau
-den Ausweichdruck, der die Expansion antreibt.
-
-AKTIVER HANDGRIFF: Der Spieler schaltet Gebiete AN und AUS. Ein abgeschalteter
-Knoten kühlt ab und erholt sich im Preis. Der Autopilot verkauft stur überall
-gleichmäßig und läuft dabei in Sperren; ein wacher Spieler rotiert vorher.
-Das ist die gesamte aktive Interaktion - kein Zusatzsystem, nur eine Folge der
-drei Grundregeln.
-
-KNOTEN-AGGREGATION: Der Spieler verwaltet immer nur die ca. 15 Knoten seiner
-aktuellen Zoomstufe. Alles Feinere klappt in den Elternknoten zusammen und läuft
-automatisch mit der Standard-Politik. Dadurch bleibt die Bedienung auf jeder
-Größenordnung gleich simpel, und Automatisierung ist mechanisch begründet statt
-nur bequem.
-
-SCOPE & DEADLINE: Spielbarer Prototyp (Simulation + minimale UI, ohne Art) in
-4-6 Wochen, Zieldatum 2026-10-06. Zwischenziel 2026-09-15: Headless-Sim mit
-Balancing durchspielbar.
-
-### Technische Festlegungen
-
-- Zahlen: break_infinity.js (Genre-Standard, > 1e308, schneller als BigInt für
-  Fließkomma-Raten).
-- Rendering: PixiJS für die Karte, normales DOM für Zahlen/Listen/Menüs.
-- Knotenbaum: prozedural aus einem Seed erzeugt, nicht handgebaut.
-
-### Balancing
-
-Durchgerechnet, Zahlen und Begründungen in BALANCING.md. Kernergebnis (Stand
-M6): Spiellänge 5.9 h (aktiv) bis 6.2 h (idle mit Statthalter), 14 Stufen.
-Die Stufen sind NICHT gleich lang: die Straßenecke dauert 8 min und wächst bis
-auf rund 40 min in der Mitte — wer neu ist, soll die Karte zweimal wachsen
-sehen, bevor er sich auf eine halbe Stunde einlässt.
-
-ENTSCHIEDEN am 2026-08-25: PRESTIGE IST GESTRICHEN. Die Simulation zeigte alle
-Prestige-Varianten langsamer als den Einzeldurchlauf (19.5 h statt 6.9 h), weil
-die Grundkurve bereits flach ist und jeder Reset Zeit kostet, die der
-Multiplikator nicht hereinholt. v1 ist EIN Durchlauf mit klarem Ende und GENAU
-EINER Währung (Bargeld). Die Prestige-Abschnitte weiter oben bleiben als
-Genre-Referenz stehen, gelten aber nicht für v1. Nachrüstung später nur als
-optionales New Game+, nie als Pflichtschleife.
 ### Story, Ton & Ende (entschieden am 2026-08-25)
 
 GRUNDTON: KOMÖDIE. Vom Nutzer ausdrücklich festgelegt. Das Spiel ist überdreht
@@ -270,30 +258,43 @@ Die Stimmen sind zum ersten Mal zufrieden - und wissen dann nichts mehr mit sich
 anzufangen. Pointe statt Pathos. Das Spiel rechnet vor, was gebaut wurde,
 Schluss.
 
-### Weitere Festlegungen vom 2026-08-25
+### Weitere Festlegungen (Stand 2026-08-26)
 
-ERSTE 60 SEKUNDEN: Start mit einem Badezimmer und einer Parzelle. Der Spieler
-verkauft VON HAND - ein Klick je Portion, Zielknoten frei wählbar. Nach ca. 15 s
-reicht es für die nächste Charge, nach ca. 60 s für die Garage. Der erste
-Statthalter (S0, der dumme) ist das dritte oder vierte Upgrade und beendet das
-Klicken dauerhaft.
-Klicken ist damit TUTORIAL, kein Dauerzustand - und der Spieler versteht den
-Autopiloten, weil er es vorher selbst besser gemacht hat.
+ERSTE 60 SEKUNDEN: Start mit einem Badezimmer, einem Junkie und Duisburg als
+erstem Gebiet. Der Spieler drueckt beide Knoepfe selbst - kochen, verkaufen,
+kochen, verkaufen. Nach wenigen Klicks reicht es fuer den zweiten Junkie, nach
+rund einer Minute fuer den ersten Dealer, und ab da verkauft es sich von selbst.
+Der erste Koch (der Junkies einstellt) beendet auch das Kochen von Hand.
+Klicken ist TUTORIAL, kein Dauerzustand - und der Spieler versteht die Helfer,
+weil er ihre Arbeit vorher selbst gemacht hat.
 
-LAGER: Fester Bestand mit Obergrenze. Läuft es über, STOCKT DIE PRODUKTION -
-kein Verlust, nur Stillstand. Erzeugt Druck (Absatz schaffen oder Lager
-ausbauen), ohne zu bestrafen. Lagerausbau ist die dritte Kaufoption neben
-Herstellorten und Land. Notwendig, weil der gute Statthalter Ware zurückhält,
-statt Märkte zu fluten.
+LAGER: Fester Bestand mit Obergrenze. Laeuft es ueber, STOCKT DIE PRODUKTION -
+kein Verlust, nur Stillstand. Es ist zugleich die Anzeige, welche Kette klemmt:
+volles Lager heisst zu wenig Verkaeufer, leeres Lager zu wenig Arbeiter.
+Lagerausbau ist die dritte Kaufoption neben Raeumen und Helfern.
 
-LAND vs. ZOOMSTUFE - sauber getrennt:
-  LAND      = WO DU PRODUZIERST (Fläche für Herstellorte)
-  ZOOMSTUFE = WO DU VERKAUFST   (Reichweite, neue Märkte)
-Zwei Achsen, die sich gegenseitig blockieren: Produktion ohne Reichweite flutet
-die Märkte, Reichweite ohne Produktion bleibt ungenutzt. Genau daraus entsteht
-das Wechselspiel, das die Simulation gezeigt hat.
+ZWEI ACHSEN, die sich gegenseitig blockieren:
+  RAEUME + ARBEITER = WIE VIEL DU HAST
+  VERKAEUFER        = WIE VIEL DAVON ANKOMMT
+Produktion ohne Verkauf laeuft ins volle Lager, Verkauf ohne Produktion steht
+still. Daraus entsteht das Wechselspiel - ohne dass eine Regel es vorschreibt.
 
-OFFLINE-CAP: 8 h (entspricht der Spiellänge).
+OFFLINE-CAP: 8 h (entspricht der Spiellaenge).
+
+### Technische Festlegungen
+
+- Zahlen: break_infinity.js (Genre-Standard, > 1e308, schneller als BigInt).
+- Rendering: PixiJS fuer die Karte, normales DOM fuer Zahlen/Listen/Menues.
+- Gebiete: Namen aus handgeschriebenen Listen, Zahlen (Bedarf, Preis, Rente)
+  prozedural aus einem Seed. Die Liste gibt das Thema, der Seed die Streuung.
+
+### Balancing
+
+Zahlen und Begruendungen in BALANCING.md. Kein Prestige (entschieden am
+2026-08-25 und weiter gueltig): die Simulation zeigte jede Prestige-Variante
+langsamer als den Einzeldurchlauf, weil die Grundkurve flach ist und jeder
+Reset Zeit kostet, die der Multiplikator nicht hereinholt. v1 ist EIN Durchlauf
+mit klarem Ende. Nachruestung spaeter nur als optionales New Game+.
 
 ## Veröffentlichung (entschieden am 2026-08-25)
 

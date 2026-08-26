@@ -5,37 +5,42 @@ Grundlagen: CLAUDE.md (Design), BALANCING.md (Zahlen).
 
 ## Wo wir stehen (2026-08-26)
 
-M1 bis M6 sind erledigt - v1 steht, knapp sechs Wochen vor der Deadline.
-Das Spiel laeuft vollstaendig durch: erste Minute von Hand, 14 Zoomstufen,
-Bedienfeld, Stimmen, Schlussbilanz, Demo-Zuschnitt.
+Das Spiel wurde neu gefasst: aus dem Marktmodell (Preisverfall, Hitze,
+Statthalter) wurde das GEBIETSMODELL - kochen, verkaufen, uebernehmen. Der
+alte Stand liegt als Tag v1-marktmodell. Warum, steht in CLAUDE.md.
 
-Pruefsteine, alle gruen - bei jeder Aenderung laufen lassen:
+Der neue Kern laeuft vollstaendig durch, die Bedienung steht, alle Pruefsteine
+sind gruen.
 
-    npm run sim        # M1: Spieldauer, Rhythmus, aktiv gegen idle
-    npm test           # M2 + M4 + M5 + M6
-    npm run diagnose   # wo die Zeit pro Zoomstufe hingeht
-    npm run sweep      # Konstanten durchdrehen (Land, Aufstiegsrampe)
+    npm run sim        # Spieldauer, Zielwahl, Belohnungstaktung
+    npm test           # Speichern, Karte, Bedienung, erste Minute, Ende
+    npm run diagnose   # wo die Zeit je Ebene hingeht
+    npm run sweep      # Bedarf gegen Raumqualitaet
     npm run dev        # Spiel im Browser (Port 5173)
     npm run build      # Vollversion
-    npm run build:demo # Demo (endet nach Stufe 5, siehe .env.demo)
+    npm run build:demo # Demo (endet nach Ebene 6, siehe .env.demo)
 
-Im Entwicklungsbuild haengen `sim`, `map`, `panel`, `jumpTo(stufe)` und `reset()`
-am globalen Objekt - sonst dauert jeder Testdurchlauf sechs Stunden. `reset()`
-haengt vorher Autospeicher und Exit-Handler ab; ohne das schreibt die alte Seite
-ihren Stand waehrend des Neuladens zurueck.
+Gemessen: 5.24 h Gesamtdauer, 120 Gebiete, Uebernahme alle 2.5 min, kluge
+Zielwahl schlaegt stures Abarbeiten (5.24 h gegen 5.60 h), Renten 35 % des
+Einkommens.
 
-WAS ALS NAECHSTES ANSTEHT (nicht mehr v1):
-- Echter Playtest mit Fremden. itch.io-Build hochladen, r/incremental_games.
-  Das ist der einzige noch offene Abnahmepunkt aus M5.
-- Die Entscheidungsdichte (BALANCING.md, Abschnitt 10). In M6 durchgemessen:
-  die naheliegenden Hebel greifen nicht, der Umbau betrifft die Ortstabelle.
-  Bewusst v2 - eine Wirtschaftsumstellung kurz vor der Abgabe waere leichtsinnig.
+Im Entwicklungsbuild haengen `sim`, `map`, `panel`, `jumpTo(ebene)` und
+`reset()` am globalen Objekt. `reset()` haengt vorher Autospeicher und
+Exit-Handler ab; ohne das schreibt die alte Seite ihren Stand waehrend des
+Neuladens zurueck.
+
+WAS ALS NAECHSTES ANSTEHT:
+- Echter Playtest mit Fremden (itch.io, r/incremental_games). Der einzige
+  Abnahmepunkt, den kein Skript ersetzen kann.
+- Kettenstufe 3 (Professor, Pate) wird nie gekauft - billiger machen oder
+  streichen, nach dem Playtest entscheiden.
+- Die letzte Ebene ist mit 98 min die laengste. Hebel: demandDecay.
 - Steam-Wrapper, Art-Durchgang, Erfolge auf die vorhandenen Events.
 
 ## 1. Was v1 ist - und was nicht
 
-IST: Ein Durchlauf von der Straßenecke bis interstellar, rund 6 h, eine Währung,
-14 Zoomstufen, 15 Herstellorte, Land als endliche Fläche, Statthalter-Upgrades,
+IST: Ein Durchlauf vom Ruhrgebiet bis interstellar, rund 5 h, eine Währung,
+8 Ebenen mit je 15 Gebieten, zwei Helfer-Ketten, Räume mit Plätzen,
 Stimmen als Erzähl- und Tutorialschicht, klares Ende.
 
 IST NICHT: Prestige, zweite Währung, Konkurrenz-KI, Achievements-UI, Art-Stil,
@@ -54,11 +59,9 @@ nur die Ränder.
       config.ts        Zuschnitt des Builds (Demo endet früher)
       numbers.ts       Hülle um break_infinity.js
       world.ts         Knotenbaum, prozedural aus einem Seed
-      market.ts        Preis-/Hitze-Dynamik (kP, rP, gamma, kH, rH, Sperre)
-      production.ts    Herstellorte, Kostenkurve, Meilensteine
-      land.ts          Parzellen, Preis nach Knappheit
-      storage.ts       Lager, Überlauf stoppt Produktion
-      policy.ts        Statthalter S0-S3 + manuelle Zuteilung
+      chains.ts        die beiden Helfer-Ketten (jede Stufe stellt ein)
+      rooms.ts         Plaetze und Qualitaet
+      territory.ts     Bedarf, Preis, Rente, Uebernahme
       sim.ts           fixer Timestep, orchestriert alles
       save.ts          StorageAdapter-Schnittstelle, Version, Offline-Progress
       events.ts        benannte Events (später Steam-Erfolge)
@@ -67,7 +70,7 @@ nur die Ränder.
       panel.ts         Bedienfeld, baut das Gerüst einmal und füllt nur noch
       voices-view.ts   Einblendung der Stimmen über der Karte
       ending.ts        Schlussbilanz
-    src/content/       Stimmen-Texte (max. 5 je Stufe) und UI-Texte
+    src/content/       Ortsnamen, Stimmen (max. 5 je Ebene), UI-Texte
     tools/             Headless-Runner, Balance-Sweeps, Regressionslauf
 
 Regeln: keine CDN-Abhängigkeit, kein Backend, keine direkten localStorage-
@@ -75,45 +78,34 @@ Aufrufe außerhalb von save.ts, Erfolge nie im UI-Code.
 
 ## 3. Meilensteine
 
-M1 - ERLEDIGT am 2026-08-25: Kern rechnet
-  core/ mit balance, numbers, world, production, land, market. Headless-Runner
-  reproduziert die Zeittabelle aus BALANCING.md (6.9 h aktiv) als Test.
-  ABNAHME: `npm run sim` gibt die 14 Stufenzeiten aus, Abweichung < 10%.
+M1 bis M6 wurden zwischen dem 2026-08-25 und 2026-08-26 fuer das MARKTMODELL
+abgearbeitet (Kern, Speichern, Balancing, Karte, Bedienung, Ende). Dieser Stand
+liegt vollstaendig als Tag `v1-marktmodell` im Repo, samt seiner eigenen
+Zeitplaene und Abnahmen.
 
-M2 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-08): Spiel wird zum Spiel
-  Lager, Statthalter-Politiken, manuelles An/Aus von Gebieten, Events,
-  Save/Load mit Version, Offline-Progress (Cap 8 h).
-  ABNAHME: Headless-Durchlauf mit Speichern, Beenden, Laden, Weiterspielen.
+Am 2026-08-26 wurde das Spiel neu gefasst: Gebiete statt Maerkte, zwei
+Helfer-Ketten statt Statthalter-Politiken, Raeume statt Land. Was aus M1 bis M6
+uebernommen wurde, weil es vom Modell unabhaengig ist:
 
-M3 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-15): headless durchspielbar
-  Balance-Sweeps über die zwei kritischen Verhältnisse. Die Ausreißer
-  Mond/Mars (67 min) und interstellar (167 min) geglättet.
-  ABNAHME: aktiv/idle beide zwischen 5 und 8 h, keine Stufe über 45 min.
+  - grosse Zahlen, fixer Timestep, deterministische Simulation
+  - Speichern/Laden mit Versionsnummer, Offline-Fortschritt (Cap 8 h)
+  - Ereignis-System als Grundlage fuer spaetere Steam-Erfolge
+  - Pixi-Karte mit stufenlosem Zoom und lokalen Koordinaten
+  - headless Messwerkzeuge: Regressionslauf, Diagnose, Sweep
+  - Stimmen als Erzaehl- und Tutorialschicht, Demo-Zuschnitt, Schlussbilanz
 
-M4 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-22): Karte
-  Pixi-Karte, stufenloses Zoomen, Knoten mit Nachfrage/Preis/Hitze sichtbar,
-  gekauftes Land eingefärbt.
-  ABNAHME: Zoom von Stufe 0 bis 13 ohne Ruckeln und ohne Zahlenartefakte.
+ABNAHME des neuen Modells (alle gruen, siehe BALANCING.md):
 
-M5 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-29): Bedienung
-  Kaufflüsse für Orte/Land/Lager, Max-Buy, "Zeit bis zum nächsten Kauf",
-  Statthalter-Menü, Stimmen-Einblendungen.
-  ABNAHME: ein Fremder spielt 20 min ohne mündliche Erklärung.
-  Das kann kein Skript prüfen. `tools/test-ui.ts` prüft stattdessen die
-  Eigenschaften, ohne die es sicher scheitert: keine Sackgasse (2442
-  Stichproben über einen ganzen Durchlauf), an jedem Kauf Preis und Wartezeit,
-  Wartezeiten die stimmen, Max-Buy kauft genau das Angekündigte, höchstens
-  5 Ortszeilen gleichzeitig, und jede Stimmen-Zeile fällt im Spiel wirklich.
-  Der Test mit einem echten Fremden steht noch aus - dafür ist der Web-Build da.
+  - durchspielbar in 5.24 h, alle 120 Gebiete uebernommen
+  - nie laenger als 15 min ohne Uebernahme (groesste Luecke 12 min)
+  - kluge Zielwahl schlaegt stures Abarbeiten (5.24 h gegen 5.60 h)
+  - Renten tragen 35 % bei, ersetzen das Kochen aber nicht
+  - erste Minute traegt: erster Junkie nach 8 s, erster Dealer nach 32 s
+  - keine Sackgassen ueber 1888 Stichproben eines ganzen Durchlaufs
+  - jede Stimmen-Zeile faellt im Spiel wirklich (37 von 37)
+  - Demo-Zuschnitt durchspielbar in 2.44 h
 
-M6 - ERLEDIGT am 2026-08-26 (geplant war 2026-10-06): rund
-  Erste 60 Sekunden (Handverkauf per Klick), Ende durch Sättigung mit
-  Schlussbilanz, Demo-Build-Flag, und die Aufstiegsrampe, die die frühen Stufen
-  kurz macht (Straßenecke 8 statt 27 min).
-  ABNAHME: vollständiger Durchlauf bis interstellar im echten Build.
-  `npm run sim` läuft in 5.90 h durch, `npm test` prüft die erste Minute, das
-  Ende und den Demo-Zuschnitt (1.74 h). Der Browser-Build wurde von Hand
-  gegengeprüft: Handverkauf, Karte, Bilanz.
+OFFEN: der Test mit einem echten Fremden. Dafuer ist der Web-Build da.
 
 ## 4. Reihenfolge innerhalb der Meilensteine
 
@@ -122,17 +114,17 @@ danach UI. Nie umgekehrt.
 
 ## 5. Technische Risiken
 
-ZOOM ÜBER 14 GRÖSSENORDNUNGEN. 12^13 ist rund 1e14 - Fließkomma in der
-Renderpipeline bricht lange vorher. Lösung: niemals absolute Weltkoordinaten
-rendern. Es werden nur die ca. 15 Knoten der aktuellen Stufe plus der
-Elternknoten gezeichnet, und die Koordinaten werden bei jedem Stufenwechsel neu
-auf den Ursprung bezogen. Das ist beim ersten Karten-Commit einzubauen, nicht
-später - nachträglich ist es ein Umbau.
+ZOOM ÜBER ACHT EBENEN. Der Bedarf wächst über die Ebenen um viele
+Größenordnungen. Würde die Karte absolute Weltkoordinaten führen, wäre die
+Fließkomma-Genauigkeit lange vorher dahin. Lösung: es werden nur die 15 Gebiete
+der aktuellen Ebene gezeichnet, und die Koordinaten werden bei jedem
+Ebenenwechsel neu auf den Ursprung bezogen.
 
-BALANCE-DRIFT. Die zwei kritischen Verhältnisse (Ausstoß 13.5 zu Kosten 12,
-Kapazität 12 zu Ausstoß 13.5) kippen das Spiel, wenn sie verrutschen. Deshalb
-liegen sie in balance.ts an einer Stelle und der Regressionslauf aus M1 läuft
-bei jeder Änderung mit.
+BALANCE-DRIFT. Der empfindlichste Wert ist rooms.qualityMult: er bestimmt, wie
+schnell der Durchsatz wächst, und damit die Spieldauer (1.90 ergab 1.58 h,
+1.55 ergibt 5.24 h). Danach kommen levels.demandMult und demandDecay. Alle drei
+liegen in balance.ts an einer Stelle, und der Regressionslauf läuft bei jeder
+Änderung mit.
 
 STIMMEN-TEXTE. Grundton ist Komödie (siehe CLAUDE.md). Einziger handgeschriebener
 Inhalt, damit das einzige Stück, das
