@@ -1,7 +1,31 @@
 # Umsetzungsplan v1
 
-Stand 2026-08-25. Deadline spielbarer Prototyp: 2026-10-06.
+Deadline spielbarer Prototyp: 2026-10-06.
 Grundlagen: CLAUDE.md (Design), BALANCING.md (Zahlen).
+
+## Wo wir stehen (2026-08-26)
+
+M1 bis M4 sind erledigt, rund vier Wochen vor Plan. NAECHSTER SCHRITT IST M5
+(Bedienung). Die Simulation ist vollstaendig durchspielbar und die Karte laeuft.
+
+Pruefsteine, alle gruen - bei jeder Aenderung laufen lassen:
+
+    npm run sim        # M1: Spieldauer, Rhythmus, aktiv gegen idle
+    npm test           # M2 + M4: Speichern/Laden/Offline, Karte & Zoom
+    npm run diagnose   # wo die Zeit pro Zoomstufe hingeht
+    npm run sweep      # Konstanten durchdrehen
+    npm run dev        # Karte im Browser (Port 5173)
+
+Im Entwicklungsbuild haengen `sim`, `map`, `jumpTo(stufe)` und `reset()` am
+globalen Objekt - sonst dauert jeder Testdurchlauf sechs Stunden. `reset()`
+haengt vorher Autospeicher und Exit-Handler ab; ohne das schreibt die alte Seite
+ihren Stand waehrend des Neuladens zurueck.
+
+OFFENE PUNKTE, die bewusst auf M5 warten (Begruendung in BALANCING.md,
+Abschnitt 10): Auf mehreren Zoomstufen wird 99-100% der Zeit gespart und dann
+ein einziger sehr teurer Ort gekauft - duenne Entscheidungsdichte. Und die
+Straßenecke dauert 27 min, was fuer die allererste Stufe zu lang ist. Beides
+laesst sich erst beurteilen, wenn man es in der Bedienung spuert.
 
 ## 1. Was v1 ist - und was nicht
 
