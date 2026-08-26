@@ -1,8 +1,8 @@
 # Projekt: 2D Incremental Game
 
-Status: Konzeptphase, noch kein Code. Stack-Empfehlung: TypeScript + Vite, Rendering
-via PixiJS (oder Canvas 2D bei einfachem Scope). Spiellogik strikt vom Rendering
-getrennt, fixer Timestep für den Tick.
+Status: spielbar. TypeScript + Vite, Karte in PixiJS, alles andere normales DOM.
+Spiellogik strikt vom Rendering getrennt, fixer Timestep für den Tick.
+Aktueller Stand, Zahlen und offene Punkte: PLAN.md und BALANCING.md.
 
 ## Leitprinzip: simpel wie genial
 
@@ -243,7 +243,7 @@ Umsetzung:
 - ESKALATION INS ABSURDE, nicht ins Bedrohliche: anfangs nörgeln sie wegen der
   Nachbarn, am Ende reden sie über Lieferfristen zum Asteroidengürtel, als wäre
   das eine völlig normale Sorge.
-- Die Herstellorte sind selbst schon die Gag-Kurve: Badezimmer -> Wohnwagen ->
+- Die Räume sind selbst schon die Gag-Kurve: Badezimmer -> Wohnwagen ->
   Mondbasis -> Asteroiden. Die Reihe trägt den Humor, ohne dass Text nötig ist.
 - Komödie hält das Thema automatisch von grimmigem Realismus fern. Kein Elend,
   keine Opfer, keine Chemie - die Ware ist eine abstrakte Zahl und bleibt es.

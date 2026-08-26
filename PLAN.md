@@ -35,6 +35,10 @@ WAS ALS NAECHSTES ANSTEHT:
 - Kettenstufe 3 (Professor, Pate) wird nie gekauft - billiger machen oder
   streichen, nach dem Playtest entscheiden.
 - Die letzte Ebene ist mit 98 min die laengste. Hebel: demandDecay.
+- KEIN NEUSTART IM SPIEL. Nach der Schlussbilanz (und bei einem abgelehnten
+  Speicherstand) gibt es keinen Weg, von vorn anzufangen - nur `reset()` in der
+  Konsole, und das nur im Entwicklungsbuild. Vor jedem oeffentlichen Build
+  noetig, sonst sitzt ein Playtester nach dem Ende fest.
 - Steam-Wrapper, Art-Durchgang, Erfolge auf die vorhandenen Events.
 
 ## 1. Was v1 ist - und was nicht
