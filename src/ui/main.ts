@@ -8,15 +8,21 @@
  */
 import { BALANCE } from '../core/balance.js';
 import { Sim } from '../core/sim.js';
+import { applyDemoLimit } from '../core/config.js';
 import { maxLevel } from '../core/world.js';
 import { BrowserStorage } from '../platform/browser-storage.js';
 import { MapView } from '../render/map.js';
 import { VoiceDirector } from '../content/voices.js';
-import { HINTS } from '../content/texts.js';
 import { applyAction, buildViewModel } from './model.js';
 import { Panel } from './panel.js';
 import { VoicesView } from './voices-view.js';
+import { EndingView } from './ending.js';
 import type { MarketNode } from '../core/market.js';
+
+// Der Zuschnitt wird HIER gesetzt, nicht im Kern: die Simulation soll nichts
+// von Build-Variablen wissen (CLAUDE.md, Architektur). Gebaut wird die Demo mit
+// `npm run build:demo`.
+if (import.meta.env.VITE_DEMO === '1') applyDemoLimit();
 
 const storage = new BrowserStorage();
 const sim = Sim.load(storage) ?? new Sim({ seed: 1 });
@@ -25,9 +31,20 @@ const director = new VoiceDirector(sim.level);
 sim.events.on(event => director.handle(event));
 
 const map = new MapView({
-  onToggleNode: id => {
-    const node = sim.nodes.find(n => n.id === id);
-    if (node) sim.setNodeEnabled(id, !node.enabled);
+  /**
+   * Ein Klick, zwei Bedeutungen - und beide heissen "um dieses Gebiet kuemmere
+   * ich mich selbst". Im Handbetrieb faehrt der Spieler eine Ladung hin; sobald
+   * ein Statthalter das uebernimmt, schaltet derselbe Klick das Gebiet ab, damit
+   * es abkuehlen kann.
+   */
+  onPickNode: id => {
+    if (!sim.hasAutopilot()) {
+      if (sim.deliver(id) > 0) map.pulse(id);
+    } else {
+      const node = sim.nodes.find(n => n.id === id);
+      if (node) sim.setNodeEnabled(id, !node.enabled);
+    }
+    refreshPanel();
   },
 });
 
@@ -40,7 +57,8 @@ const panel = new Panel(document.getElementById('panel')!, action => {
   refreshPanel();
 });
 const voices = new VoicesView(document.getElementById('voices')!);
-document.getElementById('mapHint')!.textContent = HINTS.map;
+const mapHintEl = document.getElementById('mapHint')!;
+const ending = new EndingView(document.getElementById('ending')!);
 
 /** Waehrend des Stufenwechsels wird noch die ALTE Ebene gezeichnet. */
 let renderNodes: readonly MarketNode[] = sim.nodes;
@@ -59,7 +77,11 @@ const CATCHUP_THRESHOLD = 2;
 const PANEL_INTERVAL = 0.25;
 
 function refreshPanel(): void {
-  panel.update(buildViewModel(sim));
+  const vm = buildViewModel(sim);
+  panel.update(vm);
+  // Der Kartenhinweis wechselt mit dem ersten Statthalter die Bedeutung.
+  if (mapHintEl.textContent !== vm.mapHint) mapHintEl.textContent = vm.mapHint;
+  ending.update(vm.ending);
   sincePanel = 0;
 }
 

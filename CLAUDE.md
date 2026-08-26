@@ -218,8 +218,11 @@ Balancing durchspielbar.
 
 ### Balancing
 
-Durchgerechnet, Zahlen und Begründungen in BALANCING.md. Kernergebnis:
-Spiellänge 6.9 h (aktiv) bis 7.9 h (roh geidlet), 14 Stufen à ~16 min.
+Durchgerechnet, Zahlen und Begründungen in BALANCING.md. Kernergebnis (Stand
+M6): Spiellänge 5.9 h (aktiv) bis 6.2 h (idle mit Statthalter), 14 Stufen.
+Die Stufen sind NICHT gleich lang: die Straßenecke dauert 8 min und wächst bis
+auf rund 40 min in der Mitte — wer neu ist, soll die Karte zweimal wachsen
+sehen, bevor er sich auf eine halbe Stunde einlässt.
 
 ENTSCHIEDEN am 2026-08-25: PRESTIGE IST GESTRICHEN. Die Simulation zeigte alle
 Prestige-Varianten langsamer als den Einzeldurchlauf (19.5 h statt 6.9 h), weil

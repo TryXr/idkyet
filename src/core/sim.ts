@@ -5,7 +5,7 @@
 import { BALANCE } from './balance.js';
 import { D, type Num } from './numbers.js';
 import { Rng } from './rng.js';
-import { stepMarkets, type MarketNode } from './market.js';
+import { isSellable, stepMarkets, type MarketNode } from './market.js';
 import { generateLevel, levelCapacity, levelUpCost, maxLevel } from './world.js';
 import {
   milestoneMultiplier, nextMilestone, siteArea, siteCost, siteCount,
@@ -52,6 +52,8 @@ export class Sim {
   private reactSeconds = 0;
   private cachedAlloc: number[] | null = null;
   private storageStalled = false;
+  /** Handbetrieb: Ware, die zu einem Gebiet unterwegs ist (je Knoten). */
+  private manualQueue: number[] = [];
 
   constructor(opts: SimOptions = {}) {
     this.seed = opts.seed ?? 1;
@@ -102,6 +104,17 @@ export class Sim {
     return this.output().toNumber() >= this.capacity() * 0.95;
   }
 
+  /**
+   * Freigeschaltete Ortsarten.
+   *
+   * GEMESSEN UND VERWORFEN (M6): mit L+1 statt L+2 waere die Entscheidungs-
+   * dichte deutlich besser - ein Stueck der neuesten Art deckt dann nur ein
+   * Drittel bis die Haelfte der Stufe statt des Zwei- bis Sechsfachen. Der Lauf
+   * bleibt damit aber auf dem Kontinent stehen (40 h, 734 Parzellen): die
+   * flaechenlosen Orte - Frachtschiff, Orbitalstation - kommen dann zu spaet,
+   * um die Landknappheit aufzufangen. Der Hebel liegt also in der Ortstabelle,
+   * nicht hier. Siehe BALANCING.md, Abschnitt 10.
+   */
   unlockedTiers(): number {
     return Math.min(siteCount(), this.level + 2);
   }
@@ -125,13 +138,38 @@ export class Sim {
     this.storageStalled = throttled;
     this.storage += Math.min(wanted, room); // volles Lager stoppt die Produktion
 
-    const supplyRate = this.storage / dt;
-    if (!this.cachedAlloc || this.reactSeconds === 0 || this.time % this.reactSeconds < dt) {
-      this.cachedAlloc = this.policy(this.nodes, supplyRate);
+    // Ohne Statthalter verkauft NIEMAND von allein - der Spieler liefert jede
+    // Ladung selbst aus (CLAUDE.md, erste 60 Sekunden). Das ist Tutorial und
+    // Begruendung in einem: wer erst von Hand ausgeliefert hat, versteht, was
+    // der Autopilot spaeter fuer ihn tut und warum er schlechter ist.
+    let alloc: number[];
+    if (this.hasAutopilot()) {
+      const supplyRate = this.storage / dt;
+      if (!this.cachedAlloc || this.reactSeconds === 0 || this.time % this.reactSeconds < dt) {
+        this.cachedAlloc = this.policy(this.nodes, supplyRate);
+      }
+      alloc = this.cachedAlloc.slice();
+    } else {
+      // Eine Ladung fliesst ueber mehrere Sekunden ab: mehr als das Dreifache
+      // seiner Nachfrage nimmt ein Gebiet pro Sekunde physisch nicht auf. Wer
+      // alles in einen kleinen Markt kippt, drueckt dort den Preis - genau die
+      // Lektion, um die es in der ersten Minute geht.
+      alloc = this.nodes.map(node => {
+        const queued = this.manualQueue[node.id] ?? 0;
+        if (queued <= 0) return 0;
+        if (!isSellable(node)) {
+          this.manualQueue[node.id] = 0;  // gesperrt: Ladung zurueck ins Lager
+          return 0;
+        }
+        const rate = Math.min(queued / dt, node.demand * BALANCE.market.maxIntakeMultiple);
+        this.manualQueue[node.id] = queued - rate * dt;
+        return rate;
+      });
     }
+
     const { revenue, sold } = stepMarkets(
       this.nodes,
-      this.cachedAlloc.slice(),
+      alloc,
       dt,
       this.rng,
       n => this.emit({ type: 'marketLocked', nodeId: n.id, at: this.time }),
@@ -147,6 +185,15 @@ export class Sim {
     this.incomeRate = this.incomeRate * (1 - smoothing) + perSecond * smoothing;
 
     this.time += dt;
+
+    // Das Ende ist VOLLSTAENDIGE SAETTIGUNG, nicht das Erreichen der letzten
+    // Stufe (CLAUDE.md): erst wenn auch dort jeder beliefert ist, sind die
+    // Stimmen zufrieden. Sonst waere der letzte Aufstieg der Abspann, und die
+    // groesste Stufe des Spiels bliebe ungespielt.
+    if (this.level >= maxLevel() && this.marketsSaturated()) {
+      this.finished = true;
+      this.emit({ type: 'finished', at: this.time });
+    }
   }
 
   /** Wie lange dauert es beim aktuellen Ertrag, bis der Betrag da ist? */
@@ -365,6 +412,39 @@ export class Sim {
     return true;
   }
 
+  // --- Handverkauf --------------------------------------------------------
+
+  /** Ware, die schon unterwegs ist und deshalb nicht doppelt vergeben wird. */
+  private manualPending(): number {
+    let sum = 0;
+    for (const amount of this.manualQueue) sum += amount ?? 0;
+    return sum;
+  }
+
+  /** Was ein Klick auf dieses Gebiet losschicken wuerde: das freie Lager. */
+  deliverable(nodeId: number): number {
+    const node = this.nodes.find(n => n.id === nodeId);
+    if (!node || !isSellable(node)) return 0;
+    return Math.max(0, this.storage - this.manualPending());
+  }
+
+  /**
+   * Eine Ladung von Hand ausliefern - der einzige Verkaufsweg, solange kein
+   * Statthalter angestellt ist.
+   *
+   * Ein Klick schickt das ganze Lager los, nicht eine abgezaehlte Portion.
+   * Damit ist die Entscheidung WOHIN und WANN, nicht wie viel: ein kleiner
+   * Markt nimmt die Ladung nur langsam ab und verliert dabei den Preis, ein
+   * grosser schluckt sie. Das ist die Grundregel des Spiels, gelernt in der
+   * ersten Minute und ohne ein Wort Erklaerung.
+   */
+  deliver(nodeId: number): number {
+    const amount = this.deliverable(nodeId);
+    if (amount <= 0) return 0;
+    this.manualQueue[nodeId] = (this.manualQueue[nodeId] ?? 0) + amount;
+    return amount;
+  }
+
   /** Gebiet an- oder abschalten - der einzige aktive Handgriff im Spiel. */
   setNodeEnabled(nodeId: number, enabled: boolean): void {
     const node = this.nodes.find(n => n.id === nodeId);
@@ -387,11 +467,8 @@ export class Sim {
     this.level++;
     this.nodes = generateLevel(this.level, this.seed);
     this.cachedAlloc = null;
+    this.manualQueue = [];
     this.emit({ type: 'levelUp', level: this.level, at: this.time });
-    if (this.level >= maxLevel()) {
-      this.finished = true;
-      this.emit({ type: 'finished', at: this.time });
-    }
     return true;
   }
 
@@ -462,7 +539,7 @@ export class Sim {
       node.priceMult = state.priceMult;
       node.enabled = state.enabled;
     });
-    sim.finished = save.level >= maxLevel();
+    sim.finished = save.level >= maxLevel() && sim.marketsSaturated();
     sim.refreshPolicy();
     return sim;
   }

@@ -8,6 +8,7 @@ import { MemoryStorage } from '../src/core/save.js';
 import { BALANCE } from '../src/core/balance.js';
 import { fmt } from '../src/core/numbers.js';
 import type { GameEvent } from '../src/core/events.js';
+import { decide as autoplay } from './autoplay.js';
 
 let failures = 0;
 
@@ -16,20 +17,13 @@ function check(label: string, passed: boolean, detail = ''): void {
   console.log(`  ${passed ? 'OK  ' : 'FEHL'}  ${label.padEnd(46)} ${detail}`);
 }
 
-/** Kaufpolitik wie im Regressionslauf, zusaetzlich Statthalter kaufen. */
+/**
+ * Gespielt wird mit der GEMEINSAMEN Kaufpolitik. Vorher stand hier eine eigene
+ * Kopie - die kannte den Handverkauf nicht und verdiente deshalb nichts mehr,
+ * sobald die Simulation ohne Statthalter niemanden mehr beliefern liess.
+ */
 function decide(sim: Sim): void {
-  if (sim.buyPilot()) return;
-  if (sim.marketsSaturated()) { sim.levelUp(); return; }
-  if (sim.storage >= sim.storageCap() * 0.9 && sim.buyStorage()) return;
-  let best = -1;
-  let bestPayback = Infinity;
-  for (let tier = 0; tier < sim.unlockedTiers(); tier++) {
-    if (!sim.canBuySite(tier)) continue;
-    const payback = sim.paybackSeconds(tier);
-    if (payback < bestPayback) { bestPayback = payback; best = tier; }
-  }
-  if (best >= 0) { sim.buySite(best); return; }
-  sim.buyParcel();
+  autoplay(sim, { buyPilots: true });
 }
 
 function run(sim: Sim, seconds: number): void {

@@ -10,7 +10,8 @@
     "test": "tsx tools/test-save.ts && tsx tools/test-layout.ts && tsx tools/test-ui.ts",
     "diagnose": "tsx tools/diagnose.ts",
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "build:demo": "vite build --mode demo"
   },
   "dependencies": {
     "@types/node": "^26.3.0",

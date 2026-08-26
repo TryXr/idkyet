@@ -11,11 +11,12 @@
 import { BALANCE } from '../core/balance.js';
 import { fmt, fmtTime, type Num } from '../core/numbers.js';
 import {
-  milestoneMultiplier, nextMilestone, siteArea, siteName, siteOutput,
+  milestoneMultiplier, nextMilestone, siteArea, siteCount, siteName, siteOutput,
 } from '../core/production.js';
 import { levelName, maxLevel } from '../core/world.js';
+import { CONFIG } from '../core/config.js';
 import { isSellable } from '../core/market.js';
-import { BLOCKED, PILOT_DESCRIPTIONS, PILOT_MANUAL, WARNINGS } from '../content/texts.js';
+import { BLOCKED, ENDING, HINTS, PILOT_DESCRIPTIONS, PILOT_MANUAL, WARNINGS } from '../content/texts.js';
 import type { Sim } from '../core/sim.js';
 
 // --- Aktionen -------------------------------------------------------------
@@ -84,6 +85,10 @@ export interface PilotStep {
 export interface ViewModel {
   levelName: string;
   levelIndexText: string;
+  /** Was ein Klick auf die Karte gerade bedeutet - das aendert sich mit S0. */
+  mapHint: string;
+  /** Handbetrieb: was der naechste Klick ausliefern wuerde. */
+  manual: { active: boolean; ready: number; readyText: string };
   cashText: string;
   rateText: string;
   playTimeText: string;
@@ -123,6 +128,16 @@ export interface ViewModel {
     finished: boolean;
     buy: BuyOption | null;
   };
+  /** Nur am Ende gesetzt: die Bilanz. */
+  ending: Ending | null;
+}
+
+export interface Ending {
+  title: string;
+  lead: string;
+  closing: string;
+  demo: boolean;
+  tally: Array<[string, string]>;
 }
 
 // --- Hilfen ---------------------------------------------------------------
@@ -304,6 +319,38 @@ function levelUpPart(sim: Sim): ViewModel['levelUp'] {
   };
 }
 
+/**
+ * Die Schlussbilanz. Sie ist die einzige Belohnung am Ende - deshalb steht hier,
+ * was der Spieler wirklich getan hat, nicht eine Punktzahl.
+ */
+function endingPart(sim: Sim): Ending | null {
+  if (!sim.finished) return null;
+
+  let sites = 0;
+  let biggest = 0;
+  for (let tier = 0; tier < siteCount(); tier++) {
+    const count = sim.owned[tier] ?? 0;
+    sites += count;
+    if (count > 0) biggest = tier;
+  }
+
+  return {
+    title: CONFIG.demo ? ENDING.demoTitle : ENDING.title,
+    lead: CONFIG.demo ? ENDING.demoLead : ENDING.lead,
+    closing: CONFIG.demo ? ENDING.demoClosing : ENDING.closing,
+    demo: CONFIG.demo,
+    tally: [
+      ['Gespielt', fmtTime(sim.time)],
+      ['Zuletzt beliefert', levelName(sim.level)],
+      ['Herstellorte gebaut', `${sites}`],
+      ['Größter Ort', siteName(biggest)],
+      ['Land in Besitz', `${sim.parcels} Parzellen (${fmtArea(sim.parcels * BALANCE.land.parcelArea)})`],
+      ['Produktion zuletzt', `${fmt(sim.output())} Ware/s`],
+      ['Umsatz insgesamt', fmt(sim.lifetime)],
+    ],
+  };
+}
+
 export function buildViewModel(sim: Sim): ViewModel {
   const sites = siteRows(sim);
   const storage = storagePart(sim);
@@ -314,15 +361,31 @@ export function buildViewModel(sim: Sim): ViewModel {
   const locked = sim.nodes.filter(n => n.lockedFor > 0).length;
   const off = sim.nodes.filter(n => !n.enabled).length;
 
+  // Im Handbetrieb ist die naechste Handlung immer dieselbe: ausliefern.
+  // Deshalb steht sie ganz oben und verdraengt alle anderen Hinweise.
+  const ready = sim.hasAutopilot() ? 0 : sim.storage;
+  const manual = {
+    active: !sim.hasAutopilot(),
+    ready,
+    readyText: `${fmt(ready)} Ware bereit`,
+  };
+
+  // Ist das Spiel durch, sind alle Hinweise gegenstandslos: "liefere aus" ist
+  // nach der Schlussbilanz kein Rat mehr, sondern ein Fehler.
   const warnings: string[] = [];
-  if (storage.stalled) warnings.push(WARNINGS.storageFull);
-  if (sellable === 0) warnings.push(WARNINGS.allLocked);
-  if (levelUp.saturation >= 0.95 && !levelUp.finished) warnings.push(WARNINGS.saturated);
-  if (sim.pilotLevel === 0) warnings.push(WARNINGS.noPilot);
+  if (!sim.finished) {
+    if (manual.active && ready > 0) warnings.push(WARNINGS.deliver);
+    if (storage.stalled) warnings.push(WARNINGS.storageFull);
+    if (sellable === 0) warnings.push(WARNINGS.allLocked);
+    if (levelUp.saturation >= 0.95 && !levelUp.finished) warnings.push(WARNINGS.saturated);
+    if (sim.pilotLevel === 0) warnings.push(WARNINGS.noPilot);
+  }
 
   return {
     levelName: levelName(sim.level),
     levelIndexText: `Stufe ${sim.level} von ${maxLevel()}`,
+    mapHint: manual.active ? HINTS.mapManual : HINTS.map,
+    manual,
     cashText: fmt(sim.cash),
     rateText: `${fmt(sim.incomeRate)} / s`,
     playTimeText: fmtTime(sim.time),
@@ -364,5 +427,6 @@ export function buildViewModel(sim: Sim): ViewModel {
     storage,
     pilot: pilotPart(sim),
     levelUp,
+    ending: endingPart(sim),
   };
 }

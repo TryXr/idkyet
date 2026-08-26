@@ -48,7 +48,9 @@ interface NodeVisual {
 }
 
 export interface MapCallbacks {
-  onToggleNode?: (nodeId: number) => void;
+  /** Klick auf ein Gebiet. Was er bedeutet, entscheidet der Spielstand:
+   *  im Handbetrieb ausliefern, mit Statthalter an- und abschalten. */
+  onPickNode?: (nodeId: number) => void;
 }
 
 export class MapView {
@@ -65,6 +67,9 @@ export class MapView {
   private targetZoom = 1;
   private panX = 0;
   private panY = 0;
+
+  /** Laufende Lieferungen: Knoten-Id -> Restzeit des Signals in Sekunden. */
+  private pulses = new Map<number, number>();
 
   /** Laufender Stufenwechsel. */
   private transition: { progress: number; onRebase: () => void } | null = null;
@@ -126,7 +131,7 @@ export class MapView {
       body.cursor = 'pointer';
       body.on('pointertap', (event: FederatedPointerEvent) => {
         event.stopPropagation();
-        this.callbacks.onToggleNode?.(layout.id);
+        this.callbacks.onPickNode?.(layout.id);
       });
       const label = new Text({
         text: '',
@@ -144,6 +149,15 @@ export class MapView {
   }
 
   /**
+   * Eine Lieferung sichtbar machen. Ohne diese Rueckmeldung fuehlt sich der
+   * Handverkauf an, als passiere nichts - der Preis faellt zwar, aber langsam,
+   * und der Spieler klickt in der ersten Minute ins Leere.
+   */
+  pulse(nodeId: number): void {
+    this.pulses.set(nodeId, 0.45);
+  }
+
+  /**
    * Stufenwechsel anzeigen. Die alte Ebene schrumpft zum Punkt, dann wird
    * umgesetzt und die neue faechert auf.
    */
@@ -158,6 +172,9 @@ export class MapView {
   /** Jeden Frame aufrufen. `dt` in Sekunden. */
   render(nodes: readonly MarketNode[], dt: number): void {
     this.advanceTransition(dt);
+    for (const [id, left] of this.pulses) {
+      if (left <= dt) this.pulses.delete(id); else this.pulses.set(id, left - dt);
+    }
 
     const { width, height } = this.app.screen;
     const base = Math.min(width, height) * 0.44;
@@ -237,6 +254,14 @@ export class MapView {
     if (!node.enabled) {
       body.circle(x, y, radius);
       body.stroke({ width: 2, color: COLORS.outline, alpha: 0.35 });
+    }
+
+    // Lieferung: ein Ring, der nach aussen laeuft und verblasst.
+    const pulse = this.pulses.get(node.id);
+    if (pulse !== undefined) {
+      const grow = 1 - pulse / 0.45;
+      body.circle(x, y, radius + 4 + 14 * grow);
+      body.stroke({ width: 2, color: COLORS.outline, alpha: 0.7 * (1 - grow) });
     }
 
     // Beschriftung erst ab genug Platz, sonst wird es Matsch.

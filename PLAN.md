@@ -5,32 +5,36 @@ Grundlagen: CLAUDE.md (Design), BALANCING.md (Zahlen).
 
 ## Wo wir stehen (2026-08-26)
 
-M1 bis M5 sind erledigt, gut fuenf Wochen vor Plan. NAECHSTER SCHRITT IST M6
-(Erste 60 Sekunden, Ende, Demo-Flag, Politur). Das Spiel ist vollstaendig
-bedienbar: Karte, Kaufwege, Statthalter-Menue und Stimmen stehen.
+M1 bis M6 sind erledigt - v1 steht, knapp sechs Wochen vor der Deadline.
+Das Spiel laeuft vollstaendig durch: erste Minute von Hand, 14 Zoomstufen,
+Bedienfeld, Stimmen, Schlussbilanz, Demo-Zuschnitt.
 
 Pruefsteine, alle gruen - bei jeder Aenderung laufen lassen:
 
     npm run sim        # M1: Spieldauer, Rhythmus, aktiv gegen idle
-    npm test           # M2 + M4 + M5: Speichern, Karte, Bedienung
+    npm test           # M2 + M4 + M5 + M6
     npm run diagnose   # wo die Zeit pro Zoomstufe hingeht
-    npm run sweep      # Konstanten durchdrehen
+    npm run sweep      # Konstanten durchdrehen (Land, Aufstiegsrampe)
     npm run dev        # Spiel im Browser (Port 5173)
+    npm run build      # Vollversion
+    npm run build:demo # Demo (endet nach Stufe 5, siehe .env.demo)
 
 Im Entwicklungsbuild haengen `sim`, `map`, `panel`, `jumpTo(stufe)` und `reset()`
 am globalen Objekt - sonst dauert jeder Testdurchlauf sechs Stunden. `reset()`
 haengt vorher Autospeicher und Exit-Handler ab; ohne das schreibt die alte Seite
 ihren Stand waehrend des Neuladens zurueck.
 
-OFFEN, jetzt fuer M6 (Begruendung in BALANCING.md, Abschnitt 10): die
-Entscheidungsdichte auf der optimalen Linie ist duenn (99-100% der Zeit wird
-gespart, dann faellt ein einziger grosser Kauf), und die Straßenecke dauert
-27 min. Beides sind Balancing-Fragen, keine Bedienungsfragen - die Bedienung
-zeigt sie jetzt nur deutlich.
+WAS ALS NAECHSTES ANSTEHT (nicht mehr v1):
+- Echter Playtest mit Fremden. itch.io-Build hochladen, r/incremental_games.
+  Das ist der einzige noch offene Abnahmepunkt aus M5.
+- Die Entscheidungsdichte (BALANCING.md, Abschnitt 10). In M6 durchgemessen:
+  die naheliegenden Hebel greifen nicht, der Umbau betrifft die Ortstabelle.
+  Bewusst v2 - eine Wirtschaftsumstellung kurz vor der Abgabe waere leichtsinnig.
+- Steam-Wrapper, Art-Durchgang, Erfolge auf die vorhandenen Events.
 
 ## 1. Was v1 ist - und was nicht
 
-IST: Ein Durchlauf von der Straßenecke bis interstellar, ca. 7 h, eine Währung,
+IST: Ein Durchlauf von der Straßenecke bis interstellar, rund 6 h, eine Währung,
 14 Zoomstufen, 15 Herstellorte, Land als endliche Fläche, Statthalter-Upgrades,
 Stimmen als Erzähl- und Tutorialschicht, klares Ende.
 
@@ -47,6 +51,7 @@ nur die Ränder.
 
     src/core/          reine Simulation, deterministisch, ohne Rendering
       balance.ts       ALLE Konstanten an einer Stelle, zur Laufzeit änderbar
+      config.ts        Zuschnitt des Builds (Demo endet früher)
       numbers.ts       Hülle um break_infinity.js
       world.ts         Knotenbaum, prozedural aus einem Seed
       market.ts        Preis-/Hitze-Dynamik (kP, rP, gamma, kH, rH, Sperre)
@@ -61,6 +66,7 @@ nur die Ränder.
       model.ts         Anzeigemodell, rein und ohne DOM - headless prüfbar
       panel.ts         Bedienfeld, baut das Gerüst einmal und füllt nur noch
       voices-view.ts   Einblendung der Stimmen über der Karte
+      ending.ts        Schlussbilanz
     src/content/       Stimmen-Texte (max. 5 je Stufe) und UI-Texte
     tools/             Headless-Runner, Balance-Sweeps, Regressionslauf
 
@@ -100,9 +106,14 @@ M5 - ERLEDIGT am 2026-08-26 (geplant war 2026-09-29): Bedienung
   5 Ortszeilen gleichzeitig, und jede Stimmen-Zeile fällt im Spiel wirklich.
   Der Test mit einem echten Fremden steht noch aus - dafür ist der Web-Build da.
 
-M6 - bis 2026-10-06: rund
-  Erste 60 Sekunden, Ende, Demo-Build-Flag, Politur.
+M6 - ERLEDIGT am 2026-08-26 (geplant war 2026-10-06): rund
+  Erste 60 Sekunden (Handverkauf per Klick), Ende durch Sättigung mit
+  Schlussbilanz, Demo-Build-Flag, und die Aufstiegsrampe, die die frühen Stufen
+  kurz macht (Straßenecke 8 statt 27 min).
   ABNAHME: vollständiger Durchlauf bis interstellar im echten Build.
+  `npm run sim` läuft in 5.90 h durch, `npm test` prüft die erste Minute, das
+  Ende und den Demo-Zuschnitt (1.74 h). Der Browser-Build wurde von Hand
+  gegengeprüft: Handverkauf, Karte, Bilanz.
 
 ## 4. Reihenfolge innerhalb der Meilensteine
 

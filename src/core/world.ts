@@ -8,6 +8,7 @@
  * das Detailmodell mit dem gerechneten Zeitplan ueberein.
  */
 import { BALANCE, LEVELS } from './balance.js';
+import { CONFIG } from './config.js';
 import { createNode, OPTIMAL_UTILISATION, PRICE_AT_OPTIMUM, type MarketNode } from './market.js';
 import { Rng } from './rng.js';
 
@@ -15,14 +16,24 @@ import { Rng } from './rng.js';
 export const levelCapacity = (level: number): number =>
   BALANCE.levels.cap0 * Math.pow(BALANCE.levels.capMult, level);
 
-/** Kosten, um die naechste Stufe zu erschliessen (~15 min Umsatz der aktuellen). */
+/**
+ * Wie viele Sekunden Umsatz der Aufstieg von dieser Stufe kostet.
+ * Steigt von einer sehr kurzen ersten Stufe bis zum Deckel - siehe balance.ts.
+ */
+export const upgradeSeconds = (level: number): number => Math.min(
+  BALANCE.levels.upgradeSeconds,
+  BALANCE.levels.upgradeSeconds0 * Math.pow(BALANCE.levels.upgradeRamp, level),
+);
+
+/** Kosten, um die naechste Stufe zu erschliessen. */
 export const levelUpCost = (level: number): number =>
-  levelCapacity(level) * BALANCE.effectivePricePerWare * BALANCE.levels.upgradeSeconds;
+  levelCapacity(level) * BALANCE.effectivePricePerWare * upgradeSeconds(level);
 
 export const levelName = (level: number): string =>
   LEVELS[Math.min(level, LEVELS.length - 1)] ?? `Stufe ${level}`;
 
-export const maxLevel = (): number => LEVELS.length - 1;
+/** Hoechste erreichbare Stufe. Im Demo-Build endet das Spiel frueher. */
+export const maxLevel = (): number => Math.min(CONFIG.maxLevel, LEVELS.length - 1);
 
 /**
  * Die Knoten einer Stufe erzeugen.

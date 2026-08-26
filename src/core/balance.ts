@@ -59,7 +59,18 @@ export const BALANCE = {
   levels: {
     cap0: 0.6,             // profitabel verkaufbare Ware/s auf Stufe 0
     capMult: 12,
-    upgradeSeconds: 1600,  // Aufstiegskosten = ~27 min Umsatz der Stufe
+    /**
+     * Aufstiegskosten, gemessen in Sekunden Umsatz der aktuellen Stufe. Das ist
+     * zugleich die Dauer einer Stufe, denn ausgereizt ist sie lange vorher.
+     *
+     * Die ersten Stufen sind KURZ und wachsen dann bis zum Deckel. Vorher war
+     * jede Stufe gleich lang (27 min) - auch die allererste, in der man drei
+     * Knoepfe kennt und nichts zu entscheiden hat. Die Summe ueber alle Stufen
+     * bleibt fast gleich, das Spiel ist also nicht kuerzer, nur vorne schneller.
+     */
+    upgradeSeconds: 1800,  // Deckel: ~30 min Umsatz
+    upgradeSeconds0: 420,  // Straßenecke: ~7 min
+    upgradeRamp: 1.45,
   },
 
   /** Effektiver Erloes je Ware bei optimaler Auslastung u*.

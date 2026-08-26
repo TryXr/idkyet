@@ -25,6 +25,24 @@ export const HINTS = {
   pilot: 'Der Statthalter verkauft für dich. Er ist nie so gut wie du, aber er schläft nicht.',
   levelUp: 'Größere Reichweite heißt frische Märkte. Erst dort lohnt sich mehr Produktion.',
   map: 'Gebiete anklicken schaltet sie ab. Abgeschaltete Gebiete kühlen ab und erholen sich im Preis. Mausrad zoomt, Ziehen verschiebt.',
+  /** Solange kein Statthalter angestellt ist, bedeutet derselbe Klick etwas anderes. */
+  mapManual: 'Klick auf ein Gebiet liefert eine Ladung dorthin. Niemand verkauft für dich, also musst du selbst fahren. Mausrad zoomt, Ziehen verschiebt.',
+} as const;
+
+/**
+ * Das Ende. Pointe statt Pathos (CLAUDE.md): das Spiel rechnet vor, was gebaut
+ * wurde, die Stimmen sind zum ersten Mal zufrieden - und wissen dann nichts
+ * mehr mit sich anzufangen. Der Witz gehoert den Stimmen, hier steht die Bilanz.
+ */
+export const ENDING = {
+  title: 'Jeder ist beliefert.',
+  lead: 'Kein Markt mehr offen. Nirgends. Die Stimmen sind still.',
+  closing: 'Das war alles. Es gibt niemanden mehr.',
+  /** Der Demo-Build endet frueher und sagt das auch so. */
+  demoTitle: 'Ende der Demo',
+  demoLead: 'Bis hierher reicht diese Fassung. Die Karte zoomt noch elf Stufen weiter.',
+  demoClosing: 'Die Stimmen haben noch einiges vor.',
+  close: 'Bilanz schließen',
 } as const;
 
 /** Kurze Begruendungen, warum ein Kauf gerade nicht geht. */
@@ -41,4 +59,6 @@ export const WARNINGS = {
   allLocked: 'Alle Gebiete gesperrt oder abgeschaltet. Es wird gerade nichts verkauft.',
   noPilot: 'Ohne Statthalter verdienst du nichts, während das Spiel geschlossen ist.',
   saturated: 'Die Märkte sind ausgereizt. Mehr Produktion bringt hier kaum noch etwas.',
+  /** Der wichtigste Satz der ersten Minute: hier steht, was zu tun ist. */
+  deliver: 'Ware im Lager. Klick ein Gebiet auf der Karte an, um sie auszuliefern.',
 } as const;

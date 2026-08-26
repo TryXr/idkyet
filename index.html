@@ -45,6 +45,7 @@
         max-height: calc(100% - 56px);
         overflow: hidden;
         justify-content: flex-end;
+        z-index: 30;   /* die Pointe gehoert den Stimmen, auch ueber der Bilanz */
       }
       .voice {
         align-self: flex-start;
@@ -67,6 +68,40 @@
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
+      /* Das Ende nimmt die ganze Seite: im gestapelten Layout ist der
+         Kartenbereich nur ein paar hundert Pixel hoch, dort wuerde die Bilanz
+         abgeschnitten. */
+      #ending {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        overflow: auto;
+        background: rgba(10, 12, 17, 0.88);
+        padding: 20px;
+      }
+      #ending[hidden] { display: none; }
+      .ending-box {
+        margin: auto;
+        max-width: 420px;
+        width: 100%;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 20px;
+      }
+      .ending-box h2 {
+        font-size: 19px; margin: 0 0 6px; color: var(--text);
+        text-transform: none; letter-spacing: 0;
+      }
+      .ending-lead { margin: 0 0 14px; color: var(--muted); font-size: 13px; }
+      .ending-tally { margin: 0 0 14px; display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; }
+      .ending-tally dt { color: var(--muted); font-size: 12px; }
+      .ending-tally dd { margin: 0; text-align: right; font-size: 13px; font-variant-numeric: tabular-nums; }
+      .ending-closing { margin: 0 0 16px; font-size: 13px; }
+      .ending-box button { width: 100%; text-align: center; }
+
       #speed {
         position: absolute;
         top: 12px; right: 12px;
@@ -186,6 +221,7 @@
       <p id="mapHint"></p>
       <div id="speed"></div>
       <div id="voices"></div>
+      <div id="ending" hidden></div>
     </div>
     <div id="panel"></div>
     <script type="module" src="/src/ui/main.ts"></script>

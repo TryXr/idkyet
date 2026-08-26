@@ -15,28 +15,33 @@ Drei Regeln, aus denen alles andere folgt:
 
 Eine durchgehend zoomende Karte führt über 14 Stufen von der Straßenecke bis
 interstellar. Land ist endlich; wenn die Erde voll ist, geht es nach oben.
-Eine Währung, kein Prestige, klares Ende nach rund fünf bis sieben Stunden.
+Eine Währung, kein Prestige, klares Ende nach rund sechs Stunden - erreicht ist
+es, wenn wirklich jeder Markt beliefert ist.
 
 ## Stand
 
-Meilenstein M5 erreicht: das Spiel ist bedienbar. Karte, Kaufwege für Orte,
-Land und Lager mit Max-Buy und "Zeit bis zum nächsten Kauf", Statthalter-Menü
-und die Stimmen als Erzähl- und Tutorialschicht. Darunter der Simulationskern,
-headless und deterministisch, mit Speichern, Laden und Offline-Fortschritt.
+Meilenstein M6 erreicht: v1 ist fertig. Die erste Minute verkauft man von Hand,
+danach übernimmt der Statthalter; 14 Zoomstufen führen von der Straßenecke bis
+interstellar, und am Ende steht eine Schlussbilanz statt eines Abspanns.
+Darunter der Simulationskern, headless und deterministisch, mit Speichern,
+Laden und Offline-Fortschritt.
 
 ```
 npm install
 npm run sim        # Regressionslauf gegen die Design-Ziele
-npm test           # Speichern, Karte, Bedienung
+npm test           # Speichern, Karte, Bedienung, erste Minute, Ende
 npm run sweep      # Balance-Sweeps
 npm run typecheck
 npm run dev        # Spiel im Browser
+npm run build      # Vollversion
+npm run build:demo # Demo-Zuschnitt (endet nach Stufe 5, rund 1.7 h)
 ```
 
 ## Aufbau
 
     src/core/    reine Simulation, kein DOM, deterministisch
       balance.ts   ALLE Konstanten an einer Stelle
+      config.ts    Zuschnitt des Builds (Demo endet nach Stufe 5)
     src/ui/      Anzeigemodell (rein), Bedienfeld, Stimmen-Einblendung
     src/content/ handgeschriebener Text: Stimmen und UI-Texte
     tools/       Headless-Runner, Sweeps, Abnahmetests

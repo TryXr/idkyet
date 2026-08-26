@@ -144,37 +144,50 @@ niemand die Idee ein zweites Mal hat.
 
 ## 7. Marktkapazitaet je Zoomstufe
 
-    kapazitaet(L) = 0.6 * 12^L          // profitabel verkaufbare Ware/s
-    aufstiegskosten(L) = kapazitaet(L) * 12 * 1600   // ~27 min Umsatz
+    kapazitaet(L) = 0.6 * 12^L                    // profitabel verkaufbare Ware/s
+    aufstiegskosten(L) = kapazitaet(L) * 12 * s(L)
+    s(L) = min(1800, 420 * 1.45^L)                // Sekunden Umsatz
 
 Der Faktor 12 MUSS zum Ausstoss-Faktor der Herstellorte (13.0) passen. Mit 22
 statt 12 lief das Spiel bei Stufe 10 (Orbit) in eine Wand von 322 Minuten.
 Umgekehrt gemessen: sinkt der Ausstoss-Faktor auf 12.8, also zu nah an die 12,
 springt die laengste Stufe von 48 auf 55 min. Abstand mindestens 1.0 halten.
 
+RAMPE STATT GLEICHER LAENGE (M6). s(L) war vorher konstant 1600, wodurch JEDE
+Stufe rund 27 min dauerte - auch die allererste, in der man drei Knoepfe kennt
+und nichts zu entscheiden hat. Jetzt startet s bei 420 (Straßenecke: 8 min) und
+waechst bis zum Deckel von 1800. Die Summe ueber alle Stufen bleibt fast gleich,
+das Spiel ist also nicht kuerzer, nur vorne schneller.
+
+Gemessen ueber die Rampenparameter (`npm run sweep`, zweite Tabelle): Start 350
+bis 420 und Rampe 1.35 bis 1.55 erfuellen alle Ziele; groessere Deckel als 1800
+schieben die laengste Stufe an die 45-Minuten-Grenze.
+
 ## 8. Ergebnis: Zeitplan (`npm run sim`, `tools/diagnose.ts`)
 
 | Stufe | Dauer | Landbesitz | hoechster Ort |
 |-------|------:|-----------:|---------------|
-| Straßenecke     | 27 min |   8.3% | Garage |
-| Block           | 30 min |   4.8% | Wohnwagen |
-| Stadt           | 39 min |  13.2% | Wohnwagen |
-| Ballungsraum    | 26 min |   7.2% | Lagerhalle |
-| Region          | 31 min | 100.0% | Gewerbepark |
-| Land            | 24 min |  55.3% | Stillgelegte Fabrik |
-| Nachbarlaender  | 26 min | 100.0% | Farm / Gewaechshaus |
-| Kontinent       | 28 min | 100.0% | Frachtschiff |
-| Hemisphaere     | 24 min | 100.0% | Frachtschiff |
-| Welt            | 24 min | 100.0% | Pharmawerk |
-| Orbit           | 39 min | 100.0% | Bergwerk |
-| Mond & Mars     | 32 min | 100.0% | Orbitalstation |
-| Aeusseres System| 26 min | 100.0% | Orbitalstation |
+| Straßenecke     |  8 min |   8.3% | Garage |
+| Block           | 13 min |   4.8% | Wohnwagen |
+| Stadt           | 28 min |  13.2% | Wohnwagen |
+| Ballungsraum    | 20 min |   7.2% | Lagerhalle |
+| Region          | 35 min | 100.0% | Gewerbepark |
+| Land            | 27 min |  55.3% | Stillgelegte Fabrik |
+| Nachbarlaender  | 29 min | 100.0% | Farm / Gewaechshaus |
+| Kontinent       | 31 min | 100.0% | Frachtschiff |
+| Hemisphaere     | 29 min | 100.0% | Frachtschiff |
+| Welt            | 28 min | 100.0% | Pharmawerk |
+| Orbit           | 41 min | 100.0% | Bergwerk |
+| Mond & Mars     | 35 min | 100.0% | Orbitalstation |
+| Aeusseres System| 30 min | 100.0% | Orbitalstation |
+| Interstellar    | Saettigung der letzten Stufe | 100.0% | Mondbasis |
 
 | Spielweise                        | Gesamtzeit | Faktor |
 |-----------------------------------|-----------:|-------:|
-| aktiv (anwesend, Handbetrieb)     | 6.29 h | 1.00 |
-| idle mit gekauftem Statthalter    | 6.79 h | 1.08 |
-| idle ohne jeden Ausbau            | 12.22 h | 1.94 |
+| aktiv (anwesend, Handbetrieb)     | 5.90 h | 1.00 |
+| idle mit gekauftem Statthalter    | 6.22 h | 1.05 |
+| idle ohne jeden Ausbau            | 11.75 h | 1.99 |
+| Demo-Zuschnitt (bis Stufe 5)      | 1.74 h |    -  |
 
 WICHTIG zum Messmodell: Wer anwesend ist, uebersteuert seinen Statthalter
 ohnehin - der Autopilot zaehlt nur bei Abwesenheit. Frueher wurde gegen "S3 ab
@@ -183,6 +196,12 @@ falschen Schluss ergab, aktives Spiel sei wertlos.
 
 Der grosse Hebel ist nicht Starren auf den Bildschirm, sondern der
 STATTHALTER-AUSBAU: wer ihn ignoriert, braucht doppelt so lang.
+
+ENDE (M6): Das Spiel endet nicht mit dem letzten Aufstieg, sondern wenn auch
+die letzte Stufe gesaettigt ist - "jeder ist beliefert" (CLAUDE.md). Im Messlauf
+faellt das fast zusammen, weil der Autoplay beim letzten Kauf ohnehin weit
+ueberbaut; ein Spieler, der dem Bedienfeld folgt, hat dort noch eine echte
+Schlussetappe vor sich.
 
 ## 9. Weitere gemessene Erkenntnisse
 
@@ -197,24 +216,32 @@ Nachfrage auf, der Rest bleibt im Lager. Ohne diese Grenze konnte der Autopilot
 das gesamte Lager in einer Sekunde absetzen und Fluten war folgenlos; der
 Faktor aktiv/idle lag dann bei exakt 1.00.
 
+HANDVERKAUF (M6): Ohne Statthalter verkauft niemand - ein Klick schickt das
+ganze Lager in ein Gebiet, das es ueber mehrere Sekunden aufnimmt. Gemessen mit
+Klickabstand 1 s, 3 s und 5 s: Garage nach 35/38/41 s, erster Statthalter nach
+136/160/162 s. Schnelleres Klicken bringt also fast nichts - der Lagerpuffer
+begrenzt, nicht die Klickrate. Genau so war es gedacht: Klicken ist Tutorial,
+kein Dauerzustand.
+
 ## 10. Offene Punkte
 
-- ENTSCHEIDUNGSDICHTE (angesehen in M5, offen fuer M6). Auf mehreren Stufen
-  wird 99-100% der Zeit gespart und nur ein einziger, sehr hochwertiger Ort
-  gekauft. Mit der fertigen Bedienung laesst sich das jetzt beurteilen, und das
-  Bild ist zweigeteilt:
-  - Die Zahl stammt vom Autoplay, und der ist maximal geduldig: er wartet immer
-    auf die beste Amortisation. Ein Mensch sieht im Bedienfeld zu jeder Ortsart
-    eine eigene Wartezeit und kauft unterwegs die kleineren - die Dichte am
-    Bildschirm ist also hoeher als die in der Tabelle.
-  - Trotzdem bleibt der Rhythmus flach: die Meilensteine (x2 bei 25/50/100/200)
-    greifen fast nie, weil pro Stufe selten mehr als eine Handvoll Einheiten
-    derselben Art gekauft wird. Genau dieser Schub fehlt.
-  Naheliegender Hebel fuer M6: Meilensteine frueher (z. B. 10/25/50/100) oder
-  costGrowth leicht senken, damit sich mehr Einheiten derselben Art lohnen.
-  Beides geht nur mit `npm run sim` und `npm run diagnose` daneben.
-- Straßenecke dauert 27 min. Fuer die allererste Stufe zu lang; die ersten
-  60 Sekunden sind ohnehin noch nicht gebaut (M6).
+- ENTSCHEIDUNGSDICHTE. Auf mehreren Stufen faellt ein einziger Kauf, der Rest
+  der Stufe ist Sparen auf den Aufstieg. In M6 durchgemessen, mit klarem
+  Ergebnis: die in Abschnitt 10 frueher vermuteten Hebel greifen NICHT.
+  - Meilensteine (25/50/100/200 gegen 10/25/50/100 gegen 5/15/40/100) und
+    costGrowth (1.115 bis 1.07) bewegen die Kaeufe je Stufe kaum: 6.4 bis 8.1.
+  - Die Ursache liegt im Verhaeltnis von Ortsausstoss zu Stufenkapazitaet. Ein
+    einziges Stueck der neuesten Art liefert das 2.2- bis 6.3-fache dessen, was
+    eine Stufe ueberhaupt abnimmt. Damit ist die Stufe mit einem Klick erledigt.
+  - Gegenprobe: Ortsarten erst bei L+1 statt L+2 freischalten. Dann braeuchte es
+    2 bis 5.5 Stueck - die Dichte waere gelöst. Der Lauf bleibt so aber auf dem
+    Kontinent stehen (40 h, 734 Parzellen), weil die flaechenlosen Orte
+    (Frachtschiff, Orbitalstation) zu spaet kommen, um die Landknappheit
+    aufzufangen. Verworfen und im Code dokumentiert (sim.unlockedTiers).
+  Der Hebel liegt also in der ORTSTABELLE (Flaechen und Kosten der Stufen 8-12),
+  nicht in Meilensteinen und nicht in der Freischaltregel. Das ist eine
+  Umstellung der Wirtschaft, keine Politur - deshalb v2, nicht v1.
+- Straßenecke: mit der Rampe aus Abschnitt 7 erledigt (8 statt 27 min).
 - Offline-Cap: 8 h, passt zur Spiellaenge.
 - Das Ereignis `storageFull` meldet seit M5 die FLANKE der Drosselung
   (Produktion wird beschnitten), nicht mehr den Stillstand bei genau null.

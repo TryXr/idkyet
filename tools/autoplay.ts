@@ -8,7 +8,8 @@
  * Spieler bis zu 53% einer Zoomstufe an der Flaeche haengen (siehe Diagnose).
  */
 import type { Sim } from '../src/core/sim.js';
-import { siteArea } from '../src/core/production.js';
+import { siteArea, siteOutput } from '../src/core/production.js';
+import { isSellable, nodePrice } from '../src/core/market.js';
 
 export interface AutoplayOptions {
   /** Statthalter selbst kaufen. Fuer Messlaeufe aus, dort ist die Politik gesetzt. */
@@ -23,7 +24,28 @@ export interface Decision {
   areaBlocked?: boolean;
 }
 
+/**
+ * Von Hand ausliefern, solange kein Statthalter angestellt ist.
+ *
+ * Gehoert hierher und nicht in die Simulation: es ist eine SPIELERHANDLUNG.
+ * Ohne sie steht jeder Messlauf ohne Politik-Vorgabe still, denn im Handbetrieb
+ * verkauft niemand ausser dem Spieler - genau das ist der Sinn der ersten
+ * Minute. Geliefert wird ins lohnendste offene Gebiet.
+ */
+export function handSell(sim: Sim): number {
+  if (sim.hasAutopilot()) return 0;
+  let best = -1;
+  let bestValue = -1;
+  for (const node of sim.nodes) {
+    if (!isSellable(node)) continue;
+    const value = nodePrice(node) * node.p * node.demand;
+    if (value > bestValue) { bestValue = value; best = node.id; }
+  }
+  return best >= 0 ? sim.deliver(best) : 0;
+}
+
 export function decide(sim: Sim, opts: AutoplayOptions = {}): Decision {
+  handSell(sim);
   if (opts.buyPilots && sim.buyPilot()) return { kind: 'pilot' };
 
   // Maerkte ausgereizt: nichts mehr bauen, auf die naechste Stufe sparen.
@@ -69,7 +91,15 @@ export function decide(sim: Sim, opts: AutoplayOptions = {}): Decision {
   }
 
   if (sim.canBuySite(best)) {
-    const count = Math.max(1, Math.min(sim.affordableSites(best), 25));
+    // NICHT ueber die Kapazitaet der Stufe hinaus bauen. Was die Maerkte nicht
+    // aufnehmen, bleibt im Lager, stoppt die Produktion und ist damit totes
+    // Kapital. Ohne diese Bremse kaufte der Messlauf am Stufenanfang 25 Stueck
+    // auf einmal und lag danach beim 3.5-fachen dessen, was die Stufe abnimmt -
+    // ein Verhalten, das kein Spieler zeigen wuerde, der das Bedienfeld liest.
+    const room = sim.capacity() * 1.15 - sim.output().toNumber();
+    const perUnit = siteOutput(best).toNumber();
+    const byRoom = perUnit > 0 ? Math.floor(room / perUnit) : 25;
+    const count = Math.max(1, Math.min(sim.affordableSites(best), 25, byRoom));
     const bought = sim.buySites(best, count);
     if (bought > 0) return { kind: 'site', tier: best, count: bought };
   }

@@ -1,5 +1,5 @@
 /**
- * Abnahme M5: die Bedienung.
+ * Abnahme M5 und M6: Bedienung, erste Minute, Ende und Demo-Zuschnitt.
  *
  * Das Kriterium aus PLAN.md lautet "ein Fremder spielt 20 min ohne muendliche
  * Erklaerung". Das kann kein Skript pruefen - pruefbar sind aber die
@@ -12,6 +12,10 @@
  *   4. Max-Buy kauft genau so viel, wie es ankuendigt.
  *   5. Kein Wall aus Knoepfen: die Liste bleibt ueberschaubar.
  *   6. Die Stimmen halten den Deckel ein UND kommen im Spiel wirklich vor.
+ *   7. Die erste Minute traegt: ohne Klicks kein Ertrag, mit Klicks zuegig zum
+ *      ersten Statthalter - und der beendet das Klicken dauerhaft.
+ *   8. Das Ende kommt durch SAETTIGUNG, nicht durch den letzten Aufstieg, und
+ *      der Demo-Zuschnitt endet frueher, aber vollstaendig.
  *
  * Gespielt wird mit derselben Kaufpolitik wie im Regressionslauf - ein eigener
  * Autoplay hier hat schon einmal ein voellig anderes Spiel gemessen.
@@ -19,10 +23,11 @@
 import { Sim } from '../src/core/sim.js';
 import { fmt } from '../src/core/numbers.js';
 import { levelName, maxLevel } from '../src/core/world.js';
+import { applyDemoLimit, applyFullVersion, DEMO_MAX_LEVEL } from '../src/core/config.js';
 import { siteName } from '../src/core/production.js';
 import { VOICE_LINES, VoiceDirector } from '../src/content/voices.js';
 import { applyAction, buildViewModel, type ViewModel } from '../src/ui/model.js';
-import { decide } from './autoplay.js';
+import { decide, handSell } from './autoplay.js';
 
 let failures = 0;
 
@@ -64,6 +69,7 @@ console.log('\n=== Erste Sekunden ===');
   let firstBuyable = Infinity;
   for (let t = 0; t < 120 && firstBuyable === Infinity; t++) {
     sim.tick();
+    handSell(sim);
     if (options(buildViewModel(sim)).some(o => o.enabled)) firstBuyable = sim.time;
   }
   // CLAUDE.md: das erste Upgrade muss in SEKUNDEN erreichbar sein, nicht in Minuten.
@@ -75,6 +81,54 @@ console.log('\n=== Erste Sekunden ===');
   check('Startbild erklärt den Handbetrieb', vm.pilot.manualWarning && vm.pilot.currentText.length > 20);
   check('Jede Schaltfläche hat Preis und Text',
     options(vm).every(o => o.label.length > 0 && o.costText.length > 0));
+}
+
+// --- 1b. Die erste Minute: Handverkauf (M6) --------------------------------
+console.log('\n=== Erste Minute: Handverkauf ===');
+{
+  // Wer nicht klickt, verdient nichts. Das ist der ganze Sinn des Handbetriebs -
+  // und der Grund, warum der erste Statthalter der wichtigste Kauf im Spiel ist.
+  const idle = new Sim({ seed: 1 });
+  for (let t = 0; t < 300; t++) idle.tick();
+  check('Ohne Klicks kein Ertrag', idle.cash.eq(0), fmt(idle.cash));
+  check('Lager läuft dabei voll', idle.storage >= idle.storageCap() * 0.999,
+    `${fmt(idle.storage)} / ${fmt(idle.storageCap())}`);
+
+  // Und wer klickt, kommt zügig voran.
+  const marks: Record<string, number> = {};
+  const player = new Sim({ seed: 1 });
+  for (let t = 0; t < 600; t++) {
+    player.tick();
+    handSell(player);
+    if (!marks.garage && player.cash.gte(120)) marks.garage = t;
+    if (!marks.pilot && player.cash.gte(400)) marks.pilot = t;
+  }
+  check('Genug für die Garage in unter 90 s', (marks.garage ?? 999) <= 90,
+    `nach ${marks.garage ?? '-'} s`);
+  check('Genug für den ersten Statthalter in unter 5 min', (marks.pilot ?? 9999) <= 300,
+    `nach ${marks.pilot ?? '-'} s`);
+
+  // Eine Ladung fliesst ab, statt in einer Sekunde zu verschwinden: sonst waere
+  // schnelleres Klicken immer besser und das Spiel ein Klicker.
+  const flow = new Sim({ seed: 1 });
+  for (let t = 0; t < 60; t++) flow.tick();
+  const batch = flow.deliver(flow.nodes[0]!.id);
+  check('Ein Klick schickt das ganze Lager los', Math.abs(batch - flow.storage) < 1e-9,
+    `${fmt(batch)} Ware`);
+  check('Zweiter Klick vergibt dieselbe Ware nicht doppelt',
+    flow.deliver(flow.nodes[1]!.id) === 0);
+  flow.tick();
+  check('Die Ladung braucht mehr als einen Tick', flow.storage > 0,
+    `${fmt(flow.storage)} noch im Lager`);
+
+  // Und ein Statthalter beendet das Klicken wirklich.
+  const hired = new Sim({ seed: 1 });
+  hired.cash = hired.cash.add(400);
+  hired.buyPilot();
+  const before = hired.cash;
+  for (let t = 0; t < 60; t++) hired.tick();
+  check('Nach dem ersten Statthalter verkauft es sich von selbst', hired.cash.gt(before),
+    `${fmt(before)} -> ${fmt(hired.cash)}`);
 }
 
 // --- 2. Ein ganzer Durchlauf ----------------------------------------------
@@ -243,5 +297,41 @@ console.log('\n=== Aktionen ===');
     `${parcelsNeeded} Parzellen für ${siteName(big)}`);
 }
 
-console.log(`\nM5 ${failures === 0 ? 'BESTANDEN' : `NICHT bestanden (${failures} Fehler)`}`);
+// --- 6. Ende und Demo-Zuschnitt (M6) ---------------------------------------
+console.log('\n=== Ende und Demo ===');
+{
+  // Das Ende ist die SAETTIGUNG der letzten Stufe, nicht der letzte Aufstieg.
+  const last = new Sim({ seed: 1, pilot: 'human' });
+  while (last.level < maxLevel()) {
+    last.cash = last.cash.add(last.levelUpCost().mul(2));
+    last.levelUp();
+  }
+  last.tick();
+  check('Letzte Stufe erreicht beendet das Spiel noch nicht', !last.finished,
+    `Auslastung ${(last.output().toNumber() / last.capacity() * 100).toFixed(1)} %`);
+
+  const finishedVm = buildViewModel(sim);   // der Durchlauf von oben ist durch
+  check('Durchlauf endet mit Bilanz', sim.finished && finishedVm.ending !== null);
+  check('Bilanz zählt auf, was gebaut wurde',
+    (finishedVm.ending?.tally.length ?? 0) >= 5,
+    finishedVm.ending?.tally.map(([k]) => k).join(', '));
+  check('Bilanz nennt keine Demo', finishedVm.ending?.demo === false);
+
+  // Und jetzt derselbe Kern, aber auf die Demo zugeschnitten.
+  applyDemoLimit();
+  check('Demo endet früher', maxLevel() === DEMO_MAX_LEVEL, `Stufe ${maxLevel()}`);
+  const demo = new Sim({ seed: 1, pilot: 'human' });
+  while (!demo.finished && demo.time < 8 * 3600) { demo.tick(); decide(demo, { buyPilots: true }); }
+  const demoVm = buildViewModel(demo);
+  check('Demo ist durchspielbar', demo.finished, `${(demo.time / 3600).toFixed(2)} h`);
+  check('Demo dauert ein bis drei Stunden', demo.time >= 3600 && demo.time <= 3 * 3600,
+    `${(demo.time / 3600).toFixed(2)} h`);
+  check('Demo-Bilanz weist auf die Vollversion hin', demoVm.ending?.demo === true,
+    demoVm.ending?.title ?? '');
+  check('Demo bietet keinen Aufstieg mehr an', demoVm.levelUp.finished);
+  applyFullVersion();
+  check('Vollversion wieder hergestellt', maxLevel() === 13, `Stufe ${maxLevel()}`);
+}
+
+console.log(`\nM5/M6 ${failures === 0 ? 'BESTANDEN' : `NICHT bestanden (${failures} Fehler)`}`);
 process.exit(failures === 0 ? 0 : 1);
