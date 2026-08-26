@@ -1,22 +1,25 @@
 /**
  * Das Anzeigemodell: aus der Simulation wird eine Liste fertig formatierter
- * Zeilen und Knoepfe. Kein DOM, keine Pixi, kein Zustand.
+ * Abschnitte, Zeilen und Knoepfe. Kein DOM, keine Pixi, kein Zustand.
  *
  * Warum getrennt vom Bedienfeld: so laesst sich die Bedienung headless pruefen -
  * "gibt es hier ueberhaupt etwas zu tun?", "steht an jedem Kauf eine Wartezeit?"
- * sind Fragen an dieses Modell, nicht an den Browser. Die Abnahme von M5 (ein
- * Fremder spielt 20 min ohne Erklaerung) haengt genau daran, und ein Test, der
- * einen Browser braucht, wuerde nie laufen.
+ * sind Fragen an dieses Modell, nicht an den Browser. Ein Test, der einen
+ * Browser braucht, wuerde nie laufen.
+ *
+ * Alle Abschnitte haben dieselbe Form (Zeilen mit Kaufknoepfen). Dadurch ist
+ * das Bedienfeld ein einziger generischer Renderer statt vier handgebauter.
  */
 import { BALANCE } from '../core/balance.js';
 import { fmt, fmtTime, type Num } from '../core/numbers.js';
-import {
-  milestoneMultiplier, nextMilestone, siteArea, siteCount, siteName, siteOutput,
-} from '../core/production.js';
-import { levelName, maxLevel } from '../core/world.js';
 import { CONFIG } from '../core/config.js';
-import { isSellable } from '../core/market.js';
-import { BLOCKED, ENDING, HINTS, PILOT_DESCRIPTIONS, PILOT_MANUAL, WARNINGS } from '../content/texts.js';
+import {
+  milestoneMultiplier, nextMilestone, TIERS, unitName, type ChainKey,
+} from '../core/chains.js';
+import { roomName, roomQuality, roomSeats } from '../core/rooms.js';
+import { fraction, missing, type Territory } from '../core/territory.js';
+import { levelName, maxLevel } from '../core/world.js';
+import { ENDING, HANDS, HINTS, WARNINGS } from '../content/texts.js';
 import type { Sim } from '../core/sim.js';
 
 // --- Aktionen -------------------------------------------------------------
@@ -24,19 +27,21 @@ import type { Sim } from '../core/sim.js';
 /** Alles, was der Spieler ausloesen kann. Bewusst Daten statt Funktionen:
  *  dadurch bleibt das Modell rein und der Test kann Aktionen nachspielen. */
 export type UiAction =
-  | { kind: 'site'; tier: number; count: number }
-  | { kind: 'land'; count: number }
+  | { kind: 'cook' }
+  | { kind: 'sell' }
+  | { kind: 'unit'; chain: ChainKey; tier: number; count: number }
+  | { kind: 'room'; tier: number; count: number }
   | { kind: 'storage' }
-  | { kind: 'pilot' }
-  | { kind: 'levelUp' };
+  | { kind: 'target'; id: number | null };
 
 export function applyAction(sim: Sim, action: UiAction): boolean {
   switch (action.kind) {
-    case 'site':    return sim.buySiteWithLand(action.tier, action.count) > 0;
-    case 'land':    return sim.buyParcels(action.count) > 0;
+    case 'cook':    return sim.cookByHand() > 0;
+    case 'sell':    return sim.sellByHand() > 0;
+    case 'unit':    return sim.buyUnits(action.chain, action.tier, action.count) > 0;
+    case 'room':    return sim.buyRooms(action.tier, action.count) > 0;
     case 'storage': return sim.buyStorage();
-    case 'pilot':   return sim.buyPilot();
-    case 'levelUp': return sim.levelUp();
+    case 'target':  sim.setTarget(action.id); return true;
   }
 }
 
@@ -47,89 +52,47 @@ export interface BuyOption {
   action: UiAction;
   cost: Num;
   costText: string;
-  /** Land, das bei diesem Kauf mitbezahlt wird. 0 = keins noetig. */
-  parcels: number;
   enabled: boolean;
 }
 
-export interface SiteRow {
-  tier: number;
+export interface Row {
+  key: string;
   name: string;
-  owned: number;
-  areaText: string;
-  gainText: string;          // was die naechste Einheit bringt
-  shareText: string;         // Anteil an der Produktion
-  milestoneText: string | null;
-  best: boolean;             // schnellste Amortisation
-  visible: boolean;          // spaete Stufen blenden Kleinkram aus
+  /** Bestand, z.B. "12×". Leer, wenn es noch keinen gibt. */
+  count: string;
+  /** Was die Zeile leistet. */
+  facts: string;
+  /** Meilenstein oder Hinweis, warum es gerade klemmt. */
+  note: string | null;
   waitText: string;
-  blocked: string | null;
+  highlight: boolean;
   buys: BuyOption[];
+}
+
+export interface Section {
+  key: string;
+  title: string;
+  hint: string;
+  rows: Row[];
 }
 
 export interface Meter {
   label: string;
   value: string;
-  fill: number;              // 0..1
+  fill: number;
   warn: boolean;
   hint: string;
 }
 
-export interface PilotStep {
+export interface TargetView {
+  id: number;
   name: string;
-  description: string;
-  owned: boolean;
-  costText: string;
-}
-
-export interface ViewModel {
-  levelName: string;
-  levelIndexText: string;
-  /** Was ein Klick auf die Karte gerade bedeutet - das aendert sich mit S0. */
-  mapHint: string;
-  /** Handbetrieb: was der naechste Klick ausliefern wuerde. */
-  manual: { active: boolean; ready: number; readyText: string };
-  cashText: string;
-  rateText: string;
-  playTimeText: string;
-  warnings: string[];
-  meters: Meter[];
-  facts: Array<[string, string]>;
-  sites: SiteRow[];
-  hiddenSites: number;
-  land: {
-    ownedText: string;
-    freeAreaText: string;
-    fraction: number;
-    soldOut: boolean;
-    waitText: string;
-    buys: BuyOption[];
-  };
-  storage: {
-    fillText: string;
-    fill: number;
-    stalled: boolean;
-    bufferText: string;
-    waitText: string;
-    buy: BuyOption;
-  };
-  pilot: {
-    currentText: string;
-    steps: PilotStep[];
-    manualWarning: boolean;
-    next: BuyOption | null;
-    waitText: string;
-  };
-  levelUp: {
-    label: string;
-    saturation: number;
-    saturationText: string;
-    waitText: string;
-    finished: boolean;
-    buy: BuyOption | null;
-  };
-  /** Nur am Ende gesetzt: die Bilanz. */
-  ending: Ending | null;
+  fraction: number;
+  fractionText: string;
+  missingText: string;
+  priceText: string;
+  rentText: string;
+  etaText: string;
 }
 
 export interface Ending {
@@ -140,200 +103,177 @@ export interface Ending {
   tally: Array<[string, string]>;
 }
 
+export interface ViewModel {
+  levelName: string;
+  levelIndexText: string;
+  mapHint: string;
+  cashText: string;
+  rateText: string;
+  hands: {
+    /** Nur zeigen, solange es noch etwas von Hand zu tun gibt. */
+    visible: boolean;
+    hint: string;
+    cook: BuyOption;
+    sell: BuyOption;
+  };
+  warnings: string[];
+  meters: Meter[];
+  target: TargetView | null;
+  sections: Section[];
+  facts: Array<[string, string]>;
+  ending: Ending | null;
+}
+
 // --- Hilfen ---------------------------------------------------------------
 
 /** "Zeit bis zum naechsten Kauf" - Pflichtfeature laut CLAUDE.md. */
 export function whenText(seconds: number): string {
   if (seconds <= 0) return 'jetzt';
   if (!Number.isFinite(seconds)) return 'kein Ertrag';
-  // Alles jenseits der Spiellaenge ist keine Auskunft mehr, sondern Rauschen -
-  // "in 129065115 h" hat niemandem je geholfen.
+  // Alles jenseits der Spiellaenge ist keine Auskunft mehr, sondern Rauschen.
   if (seconds > 12 * 3600) return 'nicht absehbar';
   return `in ${fmtTime(seconds)}`;
 }
 
-/** Flaechen laufen ueber acht Groessenordnungen - ab km² wird es lesbar. */
-export function fmtArea(m2: number): string {
-  if (m2 < 1_000_000) return `${fmt(m2, 0)} m²`;
-  return `${fmt(m2 / 1_000_000)} km²`;
-}
-
 const BULK_STEPS = [1, 10] as const;
 
-function buyOption(
-  sim: Sim, label: string, action: UiAction, cost: Num, parcels: number,
-): BuyOption {
-  return {
-    label,
-    action,
-    cost,
-    costText: fmt(cost),
-    parcels,
-    enabled: sim.cash.gte(cost),
-  };
+function option(sim: Sim, label: string, action: UiAction, cost: Num): BuyOption {
+  return { label, action, cost, costText: fmt(cost), enabled: sim.cash.gte(cost) };
 }
 
-// --- Aufbau ---------------------------------------------------------------
-
-function siteRows(sim: Sim): SiteRow[] {
-  const total = sim.output().toNumber();
-  let best = -1;
-  let bestPayback = Infinity;
-  for (let t = 0; t < sim.unlockedTiers(); t++) {
-    const payback = sim.paybackSeconds(t);
-    if (payback < bestPayback) { bestPayback = payback; best = t; }
+/** Die drei Kaufknoepfe einer Zeile: einer, zehn, so viele wie moeglich. */
+function buyRow(
+  sim: Sim, make: (count: number) => UiAction, cost: (count: number) => Num, max: number,
+): BuyOption[] {
+  const buys = BULK_STEPS.map(count => option(sim, `${count}×`, make(count), cost(count)));
+  if (max > BULK_STEPS[BULK_STEPS.length - 1]!) {
+    buys.push(option(sim, `Max ${max}×`, make(max), cost(max)));
   }
+  return buys;
+}
 
-  let lowestUnowned = -1;
-  for (let t = 0; t < sim.unlockedTiers(); t++) {
-    if ((sim.owned[t] ?? 0) === 0) { lowestUnowned = t; break; }
-  }
+// --- Abschnitte -----------------------------------------------------------
 
-  const rows: SiteRow[] = [];
-  for (let tier = 0; tier < sim.unlockedTiers(); tier++) {
-    const owned = sim.owned[tier] ?? 0;
-    const each = siteOutput(tier);
-    // Was die naechste Einheit WIRKLICH bringt - Meilensteine multiplizieren
-    // den ganzen Bestand, nicht nur die neue Einheit.
-    const gain = each.mul((owned + 1) * milestoneMultiplier(owned + 1) - owned * milestoneMultiplier(owned));
-    const share = total > 0 ? each.mul(owned * milestoneMultiplier(owned)).toNumber() / total : 0;
+function chainSection(sim: Sim, chain: ChainKey): Section {
+  const list = chain === 'cook' ? sim.cook : sim.sell;
+  const rows: Row[] = [];
 
-    const maxCount = sim.affordableSitesWithLand(tier);
-    const buys: BuyOption[] = [];
-    for (const count of BULK_STEPS) {
-      const parcels = sim.parcelsNeededFor(tier, count);
-      const cost = sim.siteTotalCost(tier, count);
-      const fits = sim.parcels + parcels <= sim.parcelPool();
-      const option = buyOption(sim, `${count}×`, { kind: 'site', tier, count }, cost, parcels);
-      buys.push({ ...option, enabled: option.enabled && fits });
-    }
-    if (maxCount > BULK_STEPS[BULK_STEPS.length - 1]!) {
-      buys.push(buyOption(
-        sim, `Max ${maxCount}×`, { kind: 'site', tier, count: maxCount },
-        sim.siteTotalCost(tier, maxCount), sim.parcelsNeededFor(tier, maxCount),
-      ));
-    }
+  for (let tier = 0; tier < sim.unlockedTiers(chain); tier++) {
+    const count = Math.floor(list[tier] ?? 0);
+    const max = sim.affordableUnits(chain, tier);
+    const stone = nextMilestone(count);
 
-    const first = buys[0]!;
-    const wait = sim.secondsUntil(first.cost);
-    const needsParcels = sim.parcelsNeededFor(tier, 1);
-    const landGone = sim.parcels + needsParcels > sim.parcelPool();
-    const nextStone = nextMilestone(owned);
-
-    const negligible = owned > 0 && share < 0.005 && tier !== best;
-    const tooFar = owned === 0 && wait > 1800 && tier !== lowestUnowned;
+    // Was eine weitere Einheit bringt: Stufe 0 arbeitet, alle darueber stellen ein.
+    const facts = tier === 0
+      ? (chain === 'cook'
+        ? 'kocht so gut, wie sein Raum es hergibt'
+        : `setzt ${fmt(BALANCE.sell.sellRate)} Ware/s ab`)
+      : `stellt ${unitName(chain, tier - 1)} ein`;
 
     rows.push({
-      tier,
-      name: siteName(tier),
-      owned,
-      areaText: siteArea(tier) === 0 ? 'kein Land nötig' : fmtArea(siteArea(tier)),
-      gainText: `+${fmt(gain)} Ware/s`,
-      shareText: owned > 0 ? `${(share * 100).toFixed(0)} % der Produktion` : 'noch keiner',
-      milestoneText: nextStone ? `noch ${nextStone - owned} bis ×${BALANCE.production.milestoneMult}` : null,
-      best: tier === best,
-      visible: !negligible && !tooFar,
-      waitText: whenText(wait),
-      blocked: landGone ? BLOCKED.landGone : first.enabled ? null : BLOCKED.cash,
-      buys,
+      key: `${chain}-${tier}`,
+      name: unitName(chain, tier),
+      count: count > 0 ? `${count}×` : '',
+      facts,
+      note: stone ? `noch ${stone - count} bis ×${BALANCE.chain.milestoneMult}` : null,
+      waitText: whenText(sim.secondsUntil(sim.unitCost(chain, tier))),
+      highlight: tier === 0 && count === 0,
+      buys: buyRow(sim,
+        c => ({ kind: 'unit', chain, tier, count: c }),
+        c => sim.unitBulkCost(chain, tier, c), max),
     });
   }
-  return rows;
-}
 
-function landPart(sim: Sim): ViewModel['land'] {
-  const pool = sim.parcelPool();
-  const free = pool - sim.parcels;
-  const maxCount = sim.affordableParcels();
-  const buys: BuyOption[] = [];
-  for (const count of BULK_STEPS) {
-    const take = Math.min(count, free);
-    // parcels bleibt 0: der Zusatz "inklusive Land" gilt dem Ortskauf. Hier
-    // waere er albern - man kauft ja gerade Land.
-    const option = buyOption(
-      sim, `${count}×`, { kind: 'land', count }, sim.parcelBulkCost(count), 0,
-    );
-    buys.push({ ...option, enabled: option.enabled && take === count });
-  }
-  if (maxCount > BULK_STEPS[BULK_STEPS.length - 1]!) {
-    buys.push(buyOption(
-      sim, `Max ${maxCount}×`, { kind: 'land', count: maxCount },
-      sim.parcelBulkCost(maxCount), 0,
-    ));
-  }
   return {
-    ownedText: `${sim.parcels} von ${pool} Parzellen`,
-    freeAreaText: fmtArea(sim.freeArea()),
-    fraction: Math.min(1, sim.parcels / pool),
-    soldOut: free <= 0,
-    waitText: whenText(sim.secondsUntil(sim.nextParcelCost())),
-    buys,
+    key: chain,
+    title: chain === 'cook' ? 'Kochen' : 'Verkaufen',
+    hint: chain === 'cook' ? HINTS.cook : HINTS.sell,
+    rows,
   };
 }
 
-function storagePart(sim: Sim): ViewModel['storage'] {
-  const cap = sim.storageCap();
+function roomSection(sim: Sim): Section {
+  const rows: Row[] = [];
+  const idle = sim.idle();
+  const unlocked = sim.unlockedRooms();
+  const seats = sim.seats();
+
+  for (let tier = 0; tier < unlocked; tier++) {
+    const count = sim.rooms[tier] ?? 0;
+
+    // Alte Raeume ausblenden, sobald sie nichts mehr beitragen. Sonst steht auf
+    // der letzten Ebene eine Wand aus fuenfzig Knoepfen, in der das Badezimmer
+    // genauso breit ist wie die Mondbasis.
+    const share = seats > 0 ? (count * roomSeats(tier)) / seats : 0;
+    const newest = tier >= unlocked - 2;
+    if (!newest && share < 0.04) continue;
+
+    const max = sim.affordableRooms(tier);
+    rows.push({
+      key: `room-${tier}`,
+      name: roomName(tier),
+      count: count > 0 ? `${count}×` : '',
+      facts: `${roomSeats(tier)} Plätze · ${fmt(roomQuality(tier))} Ware/s je Arbeiter`,
+      note: count > 0 ? `${count * roomSeats(tier)} Plätze insgesamt` : null,
+      waitText: whenText(sim.secondsUntil(sim.roomCost(tier))),
+      highlight: idle > 0 && tier === sim.unlockedRooms() - 2,
+      buys: buyRow(sim,
+        c => ({ kind: 'room', tier, count: c }),
+        c => sim.roomBulkCost(tier, c), max),
+    });
+  }
+
+  return { key: 'rooms', title: 'Räume', hint: HINTS.rooms, rows };
+}
+
+function storageSection(sim: Sim): Section {
+  const cost = sim.storageCost();
   const seconds = BALANCE.storage.bufferSeconds *
     Math.pow(BALANCE.storage.bufferPerLevel, sim.storageLevel);
-  const cost = sim.storageCost();
   return {
-    fillText: `${fmt(sim.storage)} / ${fmt(cap)} Ware`,
-    fill: cap > 0 ? Math.min(1, sim.storage / cap) : 0,
-    stalled: cap > 0 && sim.storage >= cap * 0.999,
-    bufferText: `${fmtTime(seconds)} Puffer`,
-    waitText: whenText(sim.secondsUntil(cost)),
-    buy: buyOption(sim, 'Lager vergrößern', { kind: 'storage' }, cost, 0),
+    key: 'storage',
+    title: 'Lager',
+    hint: HINTS.storage,
+    rows: [{
+      key: 'storage',
+      name: 'Lager vergrößern',
+      count: `Stufe ${sim.storageLevel + 1}`,
+      facts: `${fmt(sim.storage)} / ${fmt(sim.storageCap())} Ware · ${fmtTime(seconds)} Puffer`,
+      note: null,
+      waitText: whenText(sim.secondsUntil(cost)),
+      highlight: false,
+      buys: [option(sim, 'Ausbauen', { kind: 'storage' }, cost)],
+    }],
   };
 }
 
-function pilotPart(sim: Sim): ViewModel['pilot'] {
-  const steps: PilotStep[] = BALANCE.pilots.map((entry, i) => ({
-    name: entry.name,
-    description: PILOT_DESCRIPTIONS[i] ?? '',
-    owned: sim.pilotLevel > i,
-    costText: fmt(entry.cost),
-  }));
-  const next = sim.nextPilot();
+// --- Ziel und Ende --------------------------------------------------------
+
+function targetView(sim: Sim, territory: Territory | null): TargetView | null {
+  if (!territory) return null;
+  const rest = missing(territory);
+  const rate = Math.min(sim.output(), sim.sellRate());
   return {
-    currentText: sim.pilotLevel === 0
-      ? PILOT_MANUAL
-      : `${BALANCE.pilots[sim.pilotLevel - 1]!.name} – ${PILOT_DESCRIPTIONS[sim.pilotLevel - 1] ?? ''}`,
-    steps,
-    manualWarning: sim.pilotLevel === 0,
-    next: next ? buyOption(sim, next.name, { kind: 'pilot' }, next.cost, 0) : null,
-    waitText: next ? whenText(sim.secondsUntil(next.cost)) : 'ausgebaut',
+    id: territory.id,
+    name: territory.name,
+    fraction: fraction(territory),
+    fractionText: `${(fraction(territory) * 100).toFixed(1)} % versorgt`,
+    missingText: `noch ${fmt(rest)} Ware`,
+    priceText: `${fmt(territory.price)} je Ware`,
+    rentText: `${fmt(territory.rent)} / s Rente`,
+    etaText: rate > 0 ? whenText(rest / rate) : 'kein Nachschub',
   };
 }
 
-function levelUpPart(sim: Sim): ViewModel['levelUp'] {
-  const finished = sim.level >= maxLevel();
-  const cost = sim.levelUpCost();
-  const saturation = sim.capacity() > 0 ? sim.output().toNumber() / sim.capacity() : 0;
-  return {
-    label: finished ? 'Geschafft' : `Weiter nach ${levelName(sim.level + 1)}`,
-    saturation: Math.min(1, saturation),
-    saturationText: `${(Math.min(1, saturation) * 100).toFixed(0)} % der Märkte hier bedient`,
-    waitText: finished ? '' : whenText(sim.secondsUntil(cost)),
-    finished,
-    buy: finished ? null : buyOption(sim, 'Reichweite ausbauen', { kind: 'levelUp' }, cost, 0),
-  };
-}
-
-/**
- * Die Schlussbilanz. Sie ist die einzige Belohnung am Ende - deshalb steht hier,
- * was der Spieler wirklich getan hat, nicht eine Punktzahl.
- */
 function endingPart(sim: Sim): Ending | null {
   if (!sim.finished) return null;
-
-  let sites = 0;
+  let rooms = 0;
   let biggest = 0;
-  for (let tier = 0; tier < siteCount(); tier++) {
-    const count = sim.owned[tier] ?? 0;
-    sites += count;
+  for (let tier = 0; tier < sim.rooms.length; tier++) {
+    const count = sim.rooms[tier] ?? 0;
+    rooms += count;
     if (count > 0) biggest = tier;
   }
-
   return {
     title: CONFIG.demo ? ENDING.demoTitle : ENDING.title,
     lead: CONFIG.demo ? ENDING.demoLead : ENDING.lead,
@@ -341,92 +281,117 @@ function endingPart(sim: Sim): Ending | null {
     demo: CONFIG.demo,
     tally: [
       ['Gespielt', fmtTime(sim.time)],
-      ['Zuletzt beliefert', levelName(sim.level)],
-      ['Herstellorte gebaut', `${sites}`],
-      ['Größter Ort', siteName(biggest)],
-      ['Land in Besitz', `${sim.parcels} Parzellen (${fmtArea(sim.parcels * BALANCE.land.parcelArea)})`],
-      ['Produktion zuletzt', `${fmt(sim.output())} Ware/s`],
+      ['Zuletzt übernommen', levelName(sim.level)],
+      ['Gebiete übernommen', `${(maxLevel() + 1) * BALANCE.levels.perLevel}`],
+      ['Räume gebaut', `${rooms}`],
+      ['Größter Raum', roomName(biggest)],
+      ['Arbeiter', String(Math.floor(sim.cook[0] ?? 0))],
+      ['Verkäufer', String(Math.floor(sim.sell[0] ?? 0))],
+      ['Rente', `${fmt(sim.rentPerSecond())} / s`],
       ['Umsatz insgesamt', fmt(sim.lifetime)],
     ],
   };
 }
 
+// --- Aufbau ---------------------------------------------------------------
+
 export function buildViewModel(sim: Sim): ViewModel {
-  const sites = siteRows(sim);
-  const storage = storagePart(sim);
-  const levelUp = levelUpPart(sim);
-  const land = landPart(sim);
+  const target = sim.target();
+  const output = sim.output();
+  const absatz = sim.sellRate();
+  const cap = sim.storageCap();
+  const stalled = cap > 0 && sim.storage >= cap * 0.999 && output > absatz;
+  const idle = sim.idle();
 
-  const sellable = sim.nodes.filter(isSellable).length;
-  const locked = sim.nodes.filter(n => n.lockedFor > 0).length;
-  const off = sim.nodes.filter(n => !n.enabled).length;
+  // Die Haende verschwinden, sobald beide Ketten laufen - Klicken ist
+  // Tutorial, kein Dauerzustand (CLAUDE.md).
+  const handsVisible = !sim.finished && ((sim.cook[0] ?? 0) < 1 || (sim.sell[0] ?? 0) < 1);
 
-  // Im Handbetrieb ist die naechste Handlung immer dieselbe: ausliefern.
-  // Deshalb steht sie ganz oben und verdraengt alle anderen Hinweise.
-  const ready = sim.hasAutopilot() ? 0 : sim.storage;
-  const manual = {
-    active: !sim.hasAutopilot(),
-    ready,
-    readyText: `${fmt(ready)} Ware bereit`,
-  };
-
-  // Ist das Spiel durch, sind alle Hinweise gegenstandslos: "liefere aus" ist
-  // nach der Schlussbilanz kein Rat mehr, sondern ein Fehler.
   const warnings: string[] = [];
   if (!sim.finished) {
-    if (manual.active && ready > 0) warnings.push(WARNINGS.deliver);
-    if (storage.stalled) warnings.push(WARNINGS.storageFull);
-    if (sellable === 0) warnings.push(WARNINGS.allLocked);
-    if (levelUp.saturation >= 0.95 && !levelUp.finished) warnings.push(WARNINGS.saturated);
-    if (sim.pilotLevel === 0) warnings.push(WARNINGS.noPilot);
+    if (stalled) warnings.push(WARNINGS.storageFull);
+    if (idle > 0) warnings.push(WARNINGS.idleWorkers);
+    if (absatz <= 0 && sim.storage > 0) warnings.push(WARNINGS.noSellers);
+    if (output <= 0) warnings.push(WARNINGS.noWorkers);
   }
 
   return {
     levelName: levelName(sim.level),
-    levelIndexText: `Stufe ${sim.level} von ${maxLevel()}`,
-    mapHint: manual.active ? HINTS.mapManual : HINTS.map,
-    manual,
+    levelIndexText: `Ebene ${sim.level + 1} von ${maxLevel() + 1}`,
+    mapHint: HINTS.map,
     cashText: fmt(sim.cash),
     rateText: `${fmt(sim.incomeRate)} / s`,
-    playTimeText: fmtTime(sim.time),
+    hands: {
+      visible: handsVisible,
+      hint: HANDS.hint,
+      cook: {
+        label: HANDS.cook,
+        action: { kind: 'cook' },
+        cost: sim.cash,
+        costText: `+${fmt(BALANCE.manual.cookPortion * roomQuality(0))} Ware`,
+        enabled: sim.storage < cap,
+      },
+      sell: {
+        label: HANDS.sell,
+        action: { kind: 'sell' },
+        cost: sim.cash,
+        costText: sim.storage > 0 ? `${fmt(sim.storage)} Ware` : HANDS.sellBlocked,
+        enabled: sim.storage > 0 && target !== null,
+      },
+    },
     warnings,
     meters: [
       {
-        label: 'Märkte hier',
-        value: levelUp.saturationText,
-        fill: levelUp.saturation,
-        warn: levelUp.saturation >= 0.95,
-        hint: 'Produktion gegen das, was diese Reichweite aufnimmt.',
+        label: 'Ebene',
+        value: `${sim.territories.filter(t => t.owned).length} von ${sim.territories.length} übernommen`,
+        fill: sim.levelProgress(),
+        warn: false,
+        hint: 'Alle Gebiete dieser Ebene, dann zoomt die Karte heraus.',
       },
       {
         label: 'Lager',
-        value: storage.fillText,
-        fill: storage.fill,
-        warn: storage.stalled,
+        value: `${fmt(sim.storage)} / ${fmt(cap)}`,
+        fill: cap > 0 ? Math.min(1, sim.storage / cap) : 0,
+        warn: stalled,
         hint: 'Volles Lager stoppt die Produktion.',
       },
       {
-        label: 'Land',
-        value: `${(land.fraction * 100).toFixed(1)} % – ${land.freeAreaText} frei`,
-        fill: land.fraction,
-        warn: land.soldOut,
-        hint: 'Gekauftes Land dieser Stufe.',
+        label: 'Durchsatz',
+        value: `${fmt(output)} gekocht · ${fmt(absatz)} verkauft je s`,
+        fill: absatz > 0 ? Math.min(1, output / absatz) : 0,
+        warn: output <= 0 || absatz <= 0,
+        hint: 'Die kleinere der beiden Zahlen bestimmt, wie schnell es vorangeht.',
       },
     ],
+    target: targetView(sim, target),
+    sections: [
+      chainSection(sim, 'cook'),
+      roomSection(sim),
+      chainSection(sim, 'sell'),
+      storageSection(sim),
+    ],
     facts: [
-      ['Produktion', `${fmt(sim.output())} Ware/s`],
-      ['Gebiete offen', `${sellable} von ${sim.nodes.length}`],
-      ['gesperrt / aus', `${locked} / ${off}`],
+      ['Arbeiter', `${Math.floor(sim.cook[0] ?? 0)} auf ${sim.seats()} Plätzen`],
+      ['Verkäufer', String(Math.floor(sim.sell[0] ?? 0))],
+      ['Rente', `${fmt(sim.rentPerSecond())} / s`],
       ['Spielzeit', fmtTime(sim.time)],
     ],
-    // Alle Zeilen, samt Sichtbarkeitsflagge: das Bedienfeld hat einen Schalter
-    // "alles zeigen", und zweimal zu rechnen waere Unsinn.
-    sites,
-    hiddenSites: sites.filter(row => !row.visible).length,
-    land,
-    storage,
-    pilot: pilotPart(sim),
-    levelUp,
     ending: endingPart(sim),
   };
 }
+
+/** Die Gebiete fuer Karte und Liste. */
+export function territoryRows(sim: Sim): Array<{
+  id: number; name: string; fraction: number; owned: boolean; isTarget: boolean;
+}> {
+  const target = sim.target();
+  return sim.territories.map(t => ({
+    id: t.id,
+    name: t.name,
+    fraction: fraction(t),
+    owned: t.owned,
+    isTarget: target?.id === t.id,
+  }));
+}
+
+export { TIERS, milestoneMultiplier };

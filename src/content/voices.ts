@@ -79,19 +79,19 @@ export const VOICE_LINES: readonly VoiceLine[] = [
   enter('welt-2', 3, 'Der Buchhalter', 'Zur Erinnerung: angefangen haben wir im Badezimmer. Ich führe darüber Buch.'),
   unit('welt-3', 3, 'sell', 2, 'Der Buchhalter', 'Ein Kartellchef. Er stellt Straßenbosse ein, die Dealer einstellen. Das Organigramm ist inzwischen zwei Seiten lang.'),
   room('welt-4', 3, 7, 'Kevin', 'Ein Gewächshaus. Weit, satt, grün. Frag nicht, was darin wächst. Es wächst.'),
-  enter('welt-5', 3, 'Kevin', 'Wenn wir die Welt beliefern, kriegen wir dann so eine Flagge?'),
+  unit('welt-5', 3, 'cook', 2, 'Der Buchhalter', 'Ein Chemiker. Er stellt Köche ein. Niemand in dieser Kette kocht noch selbst, das ist mir aufgefallen.'),
 
   // --- 4 Erdorbit --------------------------------------------------------
   enter('orbit-1', 4, 'Kevin', 'Wir sind im Weltraum. WIR SIND IM WELTRAUM. Entschuldigung. Ich bin wieder ruhig.'),
   enter('orbit-2', 4, 'Der Buchhalter', 'Die Erde ist voll. Das war absehbar. Der Rest liegt oben.'),
   enter('orbit-3', 4, 'Die Prophetin', 'Von hier oben ist die Erde ein einziger Kunde. Ein müder, gut belieferter Kunde.'),
   room('orbit-4', 4, 8, 'Die Prophetin', 'Ein Frachtschiff. Das Meer gehört niemandem. Das Meer gehört jetzt uns.'),
+  enter('orbit-5', 4, 'Kevin', 'Wenn wir einen ganzen Planeten beliefern, kriegen wir dann so eine Flagge?'),
 
   // --- 5 Mond & Mars -----------------------------------------------------
   enter('moon-1', 5, 'Der Buchhalter', 'Der Mond hat Fläche. Sehr viel Fläche. Und keine Behörde. Ich bin fast gerührt.'),
   enter('moon-2', 5, 'Kevin', 'Auf dem Mars wohnen zwölf Leute. Zwölf! Die müssen wir ALLE erwischen.'),
   enter('moon-3', 5, 'Die Prophetin', 'Zwölf sind zwölf. Wir haben mit dreien angefangen, und zwei davon waren wir.'),
-  unit('moon-4', 5, 'cook', 2, 'Der Buchhalter', 'Ein Chemiker. Er stellt Köche ein. Niemand in dieser Kette kocht noch selbst, das ist mir aufgefallen.'),
 
   // --- 6 Äußeres System --------------------------------------------------
   enter('outer-1', 6, 'Der Buchhalter', 'Die Lieferfrist zum Asteroidengürtel liegt bei elf Monaten. Ein ganz normales Problem. Ich habe es im Griff.'),
@@ -118,8 +118,6 @@ export const VOICE_LINES: readonly VoiceLine[] = [
 export class VoiceDirector {
   private fired = new Set<string>();
   private queue: VoiceLine[] = [];
-  private seenRooms = new Set<number>();
-  private seenUnits = new Set<string>();
   private lines: readonly VoiceLine[];
 
   constructor(private level = 0, lines: readonly VoiceLine[] = VOICE_LINES) {
@@ -136,16 +134,15 @@ export class VoiceDirector {
       this.enterLevel(event.level);
       return;
     }
+    // Kein Merken, welcher Kauf der erste war: eine Zeile, die beim ersten
+    // Chemiker noch zu hoch lag, soll beim naechsten fallen. Dass jede Zeile
+    // nur einmal kommt, regelt `fired` - die Merkmengen hier haben genau das
+    // verhindert und zwei Zeilen unerreichbar gemacht.
     if (event.type === 'roomBought') {
-      if (this.seenRooms.has(event.tier)) return;
-      this.seenRooms.add(event.tier);
       this.fire(l => l.cue.on === 'room' && l.cue.tier === event.tier);
       return;
     }
     if (event.type === 'unitBought') {
-      const key = `${event.chain}${event.tier}`;
-      if (this.seenUnits.has(key)) return;
-      this.seenUnits.add(key);
       this.fire(l => l.cue.on === 'unit' && l.cue.chain === event.chain && l.cue.tier === event.tier);
       return;
     }

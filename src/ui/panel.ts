@@ -2,13 +2,15 @@
  * Das Bedienfeld. Baut das Geruest EINMAL auf und schreibt danach nur noch
  * Texte und Zustaende hinein.
  *
- * Der Vorgaenger hat die Knoepfe bei jeder Aenderung neu erzeugt - das flackert
- * und verschluckt Klicks, weil der Knopf unter dem Finger verschwindet. Bei
- * einem Spiel, in dem sich viermal je Sekunde eine Zahl aendert, ist das keine
- * Kleinigkeit, sondern der Unterschied zwischen bedienbar und nicht.
+ * Knoepfe bei jeder Aenderung neu zu erzeugen flackert und verschluckt Klicks,
+ * weil der Knopf unter dem Finger verschwindet. Bei einem Spiel, in dem sich
+ * viermal je Sekunde eine Zahl aendert, ist das der Unterschied zwischen
+ * bedienbar und nicht.
+ *
+ * Alle Abschnitte haben dieselbe Form, deshalb reicht ein Renderer fuer
+ * Kochen, Raeume, Verkaufen und Lager.
  */
-import type { BuyOption, Meter, SiteRow, UiAction, ViewModel } from './model.js';
-import { BLOCKED, HINTS } from '../content/texts.js';
+import type { BuyOption, Meter, Row, Section, UiAction, ViewModel } from './model.js';
 
 type Handler = (action: UiAction) => void;
 
@@ -21,55 +23,41 @@ function el<K extends keyof HTMLElementTagNameMap>(
   return node;
 }
 
-function section(title: string, hint: string): { root: HTMLElement; body: HTMLElement } {
-  const root = el('section', 'card');
-  root.appendChild(el('h2', '', title));
-  if (hint) root.appendChild(el('p', 'hint', hint));
-  const body = el('div', 'body');
-  root.appendChild(body);
-  return { root, body };
-}
+interface MeterEls { root: HTMLElement; label: HTMLElement; value: HTMLElement; bar: HTMLElement }
 
-interface MeterEls { root: HTMLElement; value: HTMLElement; bar: HTMLElement }
-
-interface SiteEls {
+interface RowEls {
   root: HTMLElement;
-  head: HTMLElement;
-  owned: HTMLElement;
+  name: HTMLElement;
+  count: HTMLElement;
   facts: HTMLElement;
+  note: HTMLElement;
   wait: HTMLElement;
   buttons: HTMLButtonElement[];
 }
 
+interface SectionEls { root: HTMLElement; body: HTMLElement; rows: Map<string, RowEls> }
+
 export class Panel {
   private actions = new Map<HTMLButtonElement, UiAction>();
   private meters: MeterEls[] = [];
-  private siteRows = new Map<number, SiteEls>();
-  private showAllSites = false;
+  private sections = new Map<string, SectionEls>();
 
   private levelName = el('h1');
   private levelIndex = el('div', 'level');
   private cash = el('div', 'cash');
   private rate = el('div', 'rate');
+  private handsBox = el('div', 'hands');
+  private handsHint = el('p', 'hint');
+  private cookButton = el('button', 'hand');
+  private sellButton = el('button', 'hand');
   private warnings = el('div', 'warnings');
   private meterBox = el('div', 'meters');
-  private siteList = el('div', 'rows');
-  private siteToggle = el('button', 'link');
-  private landInfo = el('div', 'line');
-  private landBar = el('div', 'bar-fill');
-  private landWait = el('div', 'wait');
-  private landButtons = el('div', 'buttons');
-  private storageInfo = el('div', 'line');
-  private storageWait = el('div', 'wait');
-  private storageButton = el('button', 'buy');
-  private pilotCurrent = el('div', 'line');
-  private pilotSteps = el('div', 'steps');
-  private pilotWait = el('div', 'wait');
-  private pilotButton = el('button', 'buy');
-  private levelInfo = el('div', 'line');
-  private levelBar = el('div', 'bar-fill');
-  private levelWait = el('div', 'wait');
-  private levelButton = el('button', 'buy');
+  private targetBox = el('section', 'card target');
+  private targetName = el('div', 'target-name');
+  private targetBar = el('div', 'bar-fill');
+  private targetFacts = el('div', 'row-facts');
+  private targetEta = el('div', 'wait');
+  private sectionBox = el('div', 'sections');
   private facts = el('dl', 'facts');
 
   constructor(private root: HTMLElement, private onAction: Handler) {
@@ -90,46 +78,32 @@ export class Panel {
     const money = el('div', 'money');
     money.append(this.cash, this.rate);
     head.appendChild(money);
-    this.root.append(head, this.warnings, this.meterBox);
+
+    const handButtons = el('div', 'hand-buttons');
+    handButtons.append(this.button(this.cookButton), this.button(this.sellButton));
+    this.handsBox.append(handButtons, this.handsHint);
+
+    this.targetBox.appendChild(el('h2', '', 'Ziel'));
+    const bar = el('div', 'bar');
+    bar.appendChild(this.targetBar);
+    this.targetBox.append(this.targetName, bar, this.targetFacts, this.targetEta);
+
+    this.root.append(head, this.handsBox, this.warnings, this.meterBox,
+      this.targetBox, this.sectionBox, this.facts);
 
     for (let i = 0; i < 3; i++) {
       const root = el('div', 'meter');
-      const label = el('div', 'meter-head');
+      const line = el('div', 'meter-head');
+      const label = el('span', 'meter-label');
       const value = el('span', 'meter-value');
-      label.append(el('span', 'meter-label'), value);
-      const bar = el('div', 'bar');
+      line.append(label, value);
+      const track = el('div', 'bar');
       const fill = el('div', 'bar-fill');
-      bar.appendChild(fill);
-      root.append(label, bar);
+      track.appendChild(fill);
+      root.append(line, track);
       this.meterBox.appendChild(root);
-      this.meters.push({ root, value, bar: fill });
+      this.meters.push({ root, label, value, bar: fill });
     }
-
-    const sites = section('Herstellorte', HINTS.sites);
-    this.siteToggle.addEventListener('click', () => {
-      this.showAllSites = !this.showAllSites;
-    });
-    sites.body.append(this.siteList, this.siteToggle);
-
-    const land = section('Land', HINTS.land);
-    const landBarBox = el('div', 'bar');
-    landBarBox.appendChild(this.landBar);
-    land.body.append(this.landInfo, landBarBox, this.landWait, this.landButtons);
-
-    const storage = section('Lager', HINTS.storage);
-    storage.body.append(this.storageInfo, this.storageWait, this.button(this.storageButton));
-
-    const pilot = section('Statthalter', HINTS.pilot);
-    pilot.body.append(
-      this.pilotCurrent, this.pilotSteps, this.pilotWait, this.button(this.pilotButton),
-    );
-
-    const reach = section('Reichweite', HINTS.levelUp);
-    const levelBarBox = el('div', 'bar');
-    levelBarBox.appendChild(this.levelBar);
-    reach.body.append(this.levelInfo, levelBarBox, this.levelWait, this.button(this.levelButton));
-
-    this.root.append(sites.root, land.root, storage.root, pilot.root, reach.root, this.facts);
   }
 
   update(vm: ViewModel): void {
@@ -138,15 +112,20 @@ export class Panel {
     this.cash.textContent = vm.cashText;
     this.rate.textContent = vm.rateText;
 
+    this.setHands(vm);
     this.setWarnings(vm.warnings);
     vm.meters.forEach((meter, i) => this.setMeter(this.meters[i], meter));
-
-    this.setSites(vm);
-    this.setLand(vm);
-    this.setStorage(vm);
-    this.setPilot(vm);
-    this.setReach(vm);
+    this.setTarget(vm);
+    for (const section of vm.sections) this.setSection(section);
     this.setFacts(vm);
+  }
+
+  private setHands(vm: ViewModel): void {
+    this.handsBox.hidden = !vm.hands.visible;
+    if (!vm.hands.visible) return;
+    this.handsHint.textContent = vm.hands.hint;
+    this.setButtons([this.cookButton], [vm.hands.cook]);
+    this.setButtons([this.sellButton], [vm.hands.sell]);
   }
 
   private setWarnings(warnings: string[]): void {
@@ -159,45 +138,60 @@ export class Panel {
   private setMeter(els: MeterEls | undefined, meter: Meter): void {
     if (!els) return;
     els.root.title = meter.hint;
-    const label = els.root.querySelector('.meter-label');
-    if (label) label.textContent = meter.label;
+    els.label.textContent = meter.label;
     els.value.textContent = meter.value;
-    els.bar.style.width = `${Math.round(meter.fill * 100)}%`;
+    els.bar.style.width = `${Math.round(Math.min(1, meter.fill) * 100)}%`;
     els.root.classList.toggle('warn', meter.warn);
   }
 
-  // --- Herstellorte -------------------------------------------------------
-
-  private setSites(vm: ViewModel): void {
-    const rows = vm.sites.filter(row => this.showAllSites || row.visible);
-    const wanted = rows.map(row => row.tier);
-
-    for (const [tier, els] of this.siteRows) {
-      if (!wanted.includes(tier)) { els.root.remove(); this.siteRows.delete(tier); }
-    }
-    rows.forEach((row, index) => {
-      const els = this.siteRows.get(row.tier) ?? this.createSiteRow(row.tier);
-      this.fillSiteRow(els, row);
-      // Reihenfolge nur anfassen, wenn sie nicht stimmt - jedes Verschieben
-      // bricht einen laufenden Klick ab.
-      if (this.siteList.children[index] !== els.root) {
-        this.siteList.insertBefore(els.root, this.siteList.children[index] ?? null);
-      }
-    });
-
-    this.siteToggle.textContent = this.showAllSites
-      ? 'weniger zeigen'
-      : vm.hiddenSites > 0 ? `${vm.hiddenSites} weitere zeigen` : '';
-    this.siteToggle.hidden = !this.showAllSites && vm.hiddenSites === 0;
+  private setTarget(vm: ViewModel): void {
+    if (!vm.target) { this.targetBox.hidden = true; return; }
+    this.targetBox.hidden = false;
+    this.targetName.textContent = `${vm.target.name} · ${vm.target.fractionText}`;
+    this.targetBar.style.width = `${Math.round(vm.target.fraction * 100)}%`;
+    this.targetFacts.textContent =
+      `${vm.target.missingText} · ${vm.target.priceText} · ${vm.target.rentText}`;
+    this.targetEta.textContent = vm.target.etaText;
   }
 
-  private createSiteRow(tier: number): SiteEls {
+  // --- Abschnitte ---------------------------------------------------------
+
+  private setSection(section: Section): void {
+    let els = this.sections.get(section.key);
+    if (!els) {
+      const root = el('section', 'card');
+      root.appendChild(el('h2', '', section.title));
+      root.appendChild(el('p', 'hint', section.hint));
+      const body = el('div', 'rows');
+      root.appendChild(body);
+      this.sectionBox.appendChild(root);
+      els = { root, body, rows: new Map() };
+      this.sections.set(section.key, els);
+    }
+
+    const wanted = section.rows.map(r => r.key);
+    for (const [key, rowEls] of els.rows) {
+      if (!wanted.includes(key)) { rowEls.root.remove(); els.rows.delete(key); }
+    }
+    section.rows.forEach((row, index) => {
+      const rowEls = els!.rows.get(row.key) ?? this.createRow(els!, row.key);
+      this.fillRow(rowEls, row);
+      // Reihenfolge nur anfassen, wenn sie nicht stimmt - jedes Verschieben
+      // bricht einen laufenden Klick ab.
+      if (els!.body.children[index] !== rowEls.root) {
+        els!.body.insertBefore(rowEls.root, els!.body.children[index] ?? null);
+      }
+    });
+  }
+
+  private createRow(section: SectionEls, key: string): RowEls {
     const root = el('div', 'row');
     const head = el('div', 'row-head');
     const name = el('span', 'name');
-    const owned = el('span', 'owned');
-    head.append(name, owned);
+    const count = el('span', 'owned');
+    head.append(name, count);
     const facts = el('div', 'row-facts');
+    const note = el('div', 'row-note');
     const wait = el('div', 'wait');
     const buttons = el('div', 'buttons');
     const list: HTMLButtonElement[] = [];
@@ -206,23 +200,21 @@ export class Panel {
       buttons.appendChild(button);
       list.push(button);
     }
-    root.append(head, facts, wait, buttons);
-    this.siteList.appendChild(root);
-    const els: SiteEls = { root, head: name, owned, facts, wait, buttons: list };
-    this.siteRows.set(tier, els);
+    root.append(head, facts, note, wait, buttons);
+    section.body.appendChild(root);
+    const els: RowEls = { root, name, count, facts, note, wait, buttons: list };
+    section.rows.set(key, els);
     return els;
   }
 
-  private fillSiteRow(els: SiteEls, row: SiteRow): void {
-    els.head.textContent = row.name;
-    els.owned.textContent = row.owned > 0 ? `${row.owned}×` : '';
-    els.root.classList.toggle('best', row.best);
-    const parts = [row.gainText, row.areaText];
-    if (row.milestoneText) parts.push(row.milestoneText);
-    if (row.owned > 0) parts.push(row.shareText);
-    els.facts.textContent = parts.join(' · ');
-    // Fehlendes Geld braucht keine Meldung - dafuer steht die Wartezeit da.
-    els.wait.textContent = row.blocked && row.blocked !== BLOCKED.cash ? row.blocked : row.waitText;
+  private fillRow(els: RowEls, row: Row): void {
+    els.name.textContent = row.name;
+    els.count.textContent = row.count;
+    els.facts.textContent = row.facts;
+    els.note.textContent = row.note ?? '';
+    els.note.hidden = !row.note;
+    els.wait.textContent = row.waitText;
+    els.root.classList.toggle('best', row.highlight);
     this.setButtons(els.buttons, row.buys);
   }
 
@@ -231,8 +223,7 @@ export class Panel {
       const option = options[i];
       if (!option) {
         // Text mitloeschen: sonst traegt ein ausgeblendeter Knopf noch die alte
-        // Beschriftung, und Vorlesehilfen wie Testwerkzeuge finden Preise, die
-        // es nicht mehr gibt.
+        // Beschriftung, und Vorlesehilfen finden Preise, die es nicht gibt.
         button.hidden = true;
         button.textContent = '';
         this.actions.delete(button);
@@ -241,70 +232,8 @@ export class Panel {
       button.hidden = false;
       button.disabled = !option.enabled;
       button.textContent = `${option.label} ${option.costText}`;
-      button.title = option.parcels > 0
-        ? `inklusive ${option.parcels} ${option.parcels === 1 ? 'Parzelle' : 'Parzellen'} Land`
-        : '';
       this.actions.set(button, option.action);
     });
-  }
-
-  // --- Land, Lager, Statthalter, Reichweite -------------------------------
-
-  private setLand(vm: ViewModel): void {
-    this.landInfo.textContent = `${vm.land.ownedText} · ${vm.land.freeAreaText} frei`;
-    this.landBar.style.width = `${Math.round(vm.land.fraction * 100)}%`;
-    this.landWait.textContent = vm.land.soldOut ? 'alles gekauft' : vm.land.waitText;
-    const need = vm.land.buys.length;
-    while (this.landButtons.children.length < need) {
-      this.landButtons.appendChild(this.button(el('button', 'buy small')));
-    }
-    this.setButtons([...this.landButtons.children] as HTMLButtonElement[], vm.land.buys);
-  }
-
-  private setStorage(vm: ViewModel): void {
-    this.storageInfo.textContent = `${vm.storage.fillText} · ${vm.storage.bufferText}`;
-    this.storageInfo.classList.toggle('warn-text', vm.storage.stalled);
-    this.storageWait.textContent = vm.storage.waitText;
-    this.setButtons([this.storageButton], [vm.storage.buy]);
-  }
-
-  private setPilot(vm: ViewModel): void {
-    this.pilotCurrent.textContent = vm.pilot.currentText;
-    this.pilotCurrent.classList.toggle('warn-text', vm.pilot.manualWarning);
-    const signature = vm.pilot.steps.map(s => `${s.name}${s.owned}`).join('|');
-    if (this.pilotSteps.dataset.signature !== signature) {
-      this.pilotSteps.dataset.signature = signature;
-      this.pilotSteps.replaceChildren(...vm.pilot.steps.map(step => {
-        const row = el('div', step.owned ? 'step done' : 'step');
-        row.append(
-          el('span', 'step-mark', step.owned ? '✓' : '·'),
-          el('span', 'step-name', step.name),
-          el('span', 'step-desc', step.description),
-        );
-        return row;
-      }));
-    }
-    this.pilotWait.textContent = vm.pilot.waitText;
-    if (vm.pilot.next) {
-      this.pilotButton.hidden = false;
-      this.setButtons([this.pilotButton], [vm.pilot.next]);
-    } else {
-      this.pilotButton.hidden = true;
-    }
-  }
-
-  private setReach(vm: ViewModel): void {
-    this.levelInfo.textContent = vm.levelUp.saturationText;
-    this.levelBar.style.width = `${Math.round(vm.levelUp.saturation * 100)}%`;
-    this.levelWait.textContent = vm.levelUp.waitText;
-    if (vm.levelUp.buy) {
-      this.levelButton.hidden = false;
-      this.setButtons([this.levelButton], [vm.levelUp.buy]);
-      this.levelButton.textContent = `${vm.levelUp.label} ${vm.levelUp.buy.costText}`;
-    } else {
-      this.levelButton.hidden = true;
-      this.levelInfo.textContent = vm.levelUp.label;
-    }
   }
 
   private setFacts(vm: ViewModel): void {

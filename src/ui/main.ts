@@ -4,7 +4,7 @@
  * Hier steht bewusst nur die Verdrahtung. Was angezeigt wird, entscheidet
  * model.ts (headless pruefbar), wie es aussieht panel.ts, was gesagt wird
  * content/voices.ts. Der Tempo-Regler bleibt drin - ohne ihn dauert jeder
- * Testdurchlauf sechs Stunden.
+ * Testdurchlauf fuenf Stunden.
  */
 import { BALANCE } from '../core/balance.js';
 import { Sim } from '../core/sim.js';
@@ -17,7 +17,7 @@ import { applyAction, buildViewModel } from './model.js';
 import { Panel } from './panel.js';
 import { VoicesView } from './voices-view.js';
 import { EndingView } from './ending.js';
-import type { MarketNode } from '../core/market.js';
+import type { Territory } from '../core/territory.js';
 
 // Der Zuschnitt wird HIER gesetzt, nicht im Kern: die Simulation soll nichts
 // von Build-Variablen wissen (CLAUDE.md, Architektur). Gebaut wird die Demo mit
@@ -25,43 +25,53 @@ import type { MarketNode } from '../core/market.js';
 if (import.meta.env.VITE_DEMO === '1') applyDemoLimit();
 
 const storage = new BrowserStorage();
-const sim = Sim.load(storage) ?? new Sim({ seed: 1 });
+
+/**
+ * Laden darf nie die Seite kosten. Ein Stand aus einer aelteren Fassung, ein
+ * halb geschriebener Eintrag, ein fremder Schluessel - in jedem Fall faengt das
+ * Spiel neu an, statt mit einer weissen Seite dazustehen. Ohne diesen Fang
+ * haette ein Spieler mit kaputtem Stand keinen Weg zurueck.
+ */
+function loadOrStartFresh(): { sim: Sim; discarded: boolean } {
+  try {
+    const loaded = Sim.load(storage);
+    if (loaded) return { sim: loaded, discarded: false };
+  } catch (error) {
+    console.warn('Speicherstand passt nicht zu dieser Fassung, fange neu an:', error);
+    storage.clear();
+    return { sim: new Sim({ seed: 1 }), discarded: true };
+  }
+  return { sim: new Sim({ seed: 1 }), discarded: false };
+}
+
+const { sim } = loadOrStartFresh();
 
 const director = new VoiceDirector(sim.level);
 sim.events.on(event => director.handle(event));
 
 const map = new MapView({
-  /**
-   * Ein Klick, zwei Bedeutungen - und beide heissen "um dieses Gebiet kuemmere
-   * ich mich selbst". Im Handbetrieb faehrt der Spieler eine Ladung hin; sobald
-   * ein Statthalter das uebernimmt, schaltet derselbe Klick das Gebiet ab, damit
-   * es abkuehlen kann.
-   */
+  /** Ein Klick waehlt das Zielgebiet - der einzige aktive Handgriff im Spiel. */
   onPickNode: id => {
-    if (!sim.hasAutopilot()) {
-      if (sim.deliver(id) > 0) map.pulse(id);
-    } else {
-      const node = sim.nodes.find(n => n.id === id);
-      if (node) sim.setNodeEnabled(id, !node.enabled);
-    }
+    sim.setTarget(id);
+    map.pulse(id);
     refreshPanel();
   },
 });
 
 const mapHost = document.getElementById('map')!;
 await map.mount(mapHost, 1);
-map.setLevel(sim.level, sim.nodes);
+map.setLevel(sim.level, sim.territories);
 
 const panel = new Panel(document.getElementById('panel')!, action => {
   applyAction(sim, action);
   refreshPanel();
 });
 const voices = new VoicesView(document.getElementById('voices')!);
-const mapHintEl = document.getElementById('mapHint')!;
 const ending = new EndingView(document.getElementById('ending')!);
+const mapHintEl = document.getElementById('mapHint')!;
 
-/** Waehrend des Stufenwechsels wird noch die ALTE Ebene gezeichnet. */
-let renderNodes: readonly MarketNode[] = sim.nodes;
+/** Waehrend des Ebenenwechsels wird noch die ALTE Ebene gezeichnet. */
+let renderTerritories: readonly Territory[] = sim.territories;
 let lastLevel = sim.level;
 
 let speed = 1;
@@ -73,14 +83,14 @@ let sincePanel = 0;
  *  nicht Bild fuer Bild nachgeholt, sondern grob nachgerechnet. */
 const CATCHUP_THRESHOLD = 2;
 /** Das Bedienfeld muss nicht mit 60 Hz rechnen; viermal je Sekunde liest
- *  sich ruhiger und spart die Sammelpreis-Rechnerei. */
+ *  sich ruhiger. */
 const PANEL_INTERVAL = 0.25;
 
 function refreshPanel(): void {
   const vm = buildViewModel(sim);
   panel.update(vm);
-  // Der Kartenhinweis wechselt mit dem ersten Statthalter die Bedeutung.
   if (mapHintEl.textContent !== vm.mapHint) mapHintEl.textContent = vm.mapHint;
+  map.setTarget(vm.target?.id ?? null);
   ending.update(vm.ending);
   sincePanel = 0;
 }
@@ -111,15 +121,15 @@ function step(now: number): void {
 
   if (sim.level !== lastLevel && !map.isTransitioning) {
     const nextLevel = sim.level;
-    const nextNodes = sim.nodes;
+    const nextTerritories = sim.territories;
     lastLevel = nextLevel;
     map.playLevelChange(() => {
-      renderNodes = nextNodes;
-      map.setLevel(nextLevel, nextNodes);
+      renderTerritories = nextTerritories;
+      map.setLevel(nextLevel, nextTerritories);
     });
   }
 
-  map.render(renderNodes, realDt);
+  map.render(renderTerritories, realDt);
   voices.update(director, realDt);
 
   sincePanel += realDt;
@@ -151,16 +161,17 @@ const saveOnExit = () => sim.save(storage);
 globalThis.addEventListener('beforeunload', saveOnExit);
 
 // Nur im Entwicklungsbuild: Simulation von der Konsole aus erreichbar, damit
-// man Zoomstufen anspringen kann, ohne sechs Stunden zu spielen.
+// man Ebenen anspringen kann, ohne fuenf Stunden zu spielen.
 if (import.meta.env.DEV) {
   Object.assign(globalThis, {
     sim,
     map,
     panel,
+    /** Alle Gebiete der aktuellen Ebene uebernehmen und weiterziehen. */
     jumpTo(level: number) {
       while (sim.level < level && sim.level < maxLevel()) {
-        sim.cash = sim.cash.add(sim.levelUpCost().mul(2));
-        sim.levelUp();
+        for (const t of sim.territories) { t.supplied = t.demand; t.owned = true; }
+        sim.tick(0.001);
       }
     },
     /** Sauber von vorn. Autospeicher und Exit-Handler MUESSEN vorher weg,
