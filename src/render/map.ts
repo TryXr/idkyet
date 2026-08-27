@@ -11,6 +11,7 @@
  */
 import { Application, Container, Graphics, Text, type FederatedPointerEvent } from 'pixi.js';
 import { fraction, type Territory } from '../core/territory.js';
+import { strainTag } from '../core/strains.js';
 import { layoutLevel, type NodeLayout } from './layout.js';
 
 const COLORS = {
@@ -271,9 +272,16 @@ export class MapView {
     const showLabel = radius > 18;
     label.visible = showLabel;
     if (showLabel) {
+      // Am offenen Gebiet steht, WAS es abwirft - sonst waere die Zielwahl
+      // blind und die Sorte nur eine Ueberraschung hinterher. Am eigenen steht
+      // die Sorte selbst: die Karte ist damit zugleich die Sammlung.
+      // Die dritte Zeile nur, wo sie auch hinpasst: auf einem kleinen Kreis
+      // sind Name und Prozentzahl wichtiger als die Sortenart.
+      const roomy = radius > 26;
       label.text = territory.owned
-        ? territory.name
-        : `${territory.name}\n${Math.round(filled * 100)} %`;
+        ? `${territory.name}${roomy ? `\n${territory.strain.name}` : ''}`
+        : `${territory.name}\n${Math.round(filled * 100)} %` +
+          (roomy ? `\n${strainTag(territory.strain)}` : '');
       label.position.set(x, y);
       label.style.fontSize = Math.min(14, Math.max(9, radius * 0.28));
     }

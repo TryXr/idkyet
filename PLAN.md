@@ -5,35 +5,32 @@ Grundlagen: CLAUDE.md (Design), BALANCING.md (Zahlen).
 
 ## Wo wir stehen (2026-08-27)
 
-Thema auf WEED umgestellt und der Pflanzen-Kreislauf eingebaut (Schritt 0 und 1
-aus TIEFE.md). Die Ernte hat jetzt zwei Verwendungen, Raeume kosten laufend
-Strom, und beide Helfer-Ketten stellen nur noch nach Bedarf ein.
+Aus TIEFE.md sind Schritt 0 (Thema WEED), Schritt 1 (E1, Pflanzen-Kreislauf und
+Betriebskosten), Schritt 2 (E3, Konkurrenz) und Schritt 3 (E2, Sorten) gebaut
+und durchgemessen. Offen ist nur noch E4 (Entfaltungsplan).
 
-    npm run decisions  # NEU: ist der Regler wirklich eine Entscheidung?
+    npm run decisions  # ist der Regler eine Entscheidung, und was tun Sorten?
 
-Gemessen: 5.55 h Gesamtdauer, alle 120 Gebiete, groesste Luecke 11 min, Renten
-33 %. Der Regler traegt: die beste FESTE Stellung braucht 25 % laenger als die
-mitdenkende, beide Extreme kommen gar nicht durch. Beide Ketten bleiben ab
-Ebene 4 innerhalb von Faktor 1.4 beieinander, der Engpass wechselt, und
-Kettenstufe 3 wird endlich gekauft. Details in BALANCING.md.
+Gemessen: 5.46 h Gesamtdauer, alle 120 Gebiete, groesste Luecke 11 min, Renten
+44 %. Der Regler traegt das aktive Spiel (Faktor 1.84), die Konkurrenz macht
+aus der Zielwahl ein Rennen:
 
-Dazu die KONKURRENZ (E3): ab der Ebene "Welt" nimmt sich jemand anderes offene
-Gebiete. Zurueckzuholen, aber teurer - kein Fail-State.
+    aufmerksam                   5.46 h,  1 Gebiet verloren
+    Zielwahl stur der Reihe nach 5.97 h, 13 Gebiete verloren
+    Regler unberuehrt           10.06 h, 20 Gebiete verloren
 
-    aufmerksam                   5.56 h,  1 Gebiet verloren
-    Zielwahl stur der Reihe nach 6.18 h, 14 Gebiete verloren
-    Regler unberuehrt           10.07 h, 22 Gebiete verloren
+DIE SORTEN (E2): jede Uebernahme laesst genau einen dauerhaften Vorteil da,
+Name und Wirkung aus dem Seed. Zum ersten Mal laufen Durchlaeufe auseinander -
+fuenf Seeds zwischen 5.46 und 6.98 h, vorher lagen sie alle innerhalb von 1 %.
+Bezahlt wurde das mit `levels.demandMult` 13 -> 16.5; ohne diese Gegenrechnung
+brach der Durchlauf auf 2.80 h ein.
 
-DAS ABBRUCHKRITERIUM HAT GEGRIFFEN: der Rivale hebt den Aktiv/Idle-Faktor der
-ZIELWAHL nicht ueber 1.3 (durchgemessen, er bleibt bei 1.11). Die Zielwahl ist
-als Traeger des aktiven Spiels damit widerlegt - sie bleibt als Wuerze drin.
-Traeger ist der REGLER, und daran gemessen steht der Faktor bei 1.81, also in
-der Vorgabe. Warum die alte Messung die falsche Frage stellte, steht in
-BALANCING.md 5b.
-
-NOCH OFFEN AUS TIEFE.md: E2 (Sorten) und E4 (Entfaltungsplan). Die eine
-Kennzahl, die noch fehlt, haengt an E2: Entscheidungsdichte 15 % statt 30 % -
-die KAUFENTSCHEIDUNG ist weiter ueberwiegend Nachrechnen.
+VON DEN DREI ABNAHMEKRITERIEN DES UMBAUS sind zwei erfuellt (aktiv/idle 1.84,
+Streuung 1.28) und eines widerlegt: die ENTSCHEIDUNGSDICHTE steht bei 7 % statt
+30 %, und E2 hat sie gesenkt statt gehoben. Der Grund ist strukturell und in
+BALANCING.md 5c durchgerechnet - ein globaler Vorteil verschiebt kein Ranking.
+Der eigentliche Hebel liegt bei den Kostenkurven: 83 % des Geldes gehen in
+Raeume, je 9 % in die beiden Ketten.
 
 ## Wo wir vorher standen (2026-08-26)
 
@@ -62,14 +59,17 @@ Exit-Handler ab; ohne das schreibt die alte Seite ihren Stand waehrend des
 Neuladens zurueck.
 
 WAS ALS NAECHSTES ANSTEHT:
-- TIEFE.md ZUERST LESEN. Das Spiel laeuft durch, fuehlt sich aber repetitiv an.
-  Befund, Recherche und der Umbauplan (Loehne, Gebietseigenschaften, Rivale,
-  Entfaltungsplan) stehen dort samt neuen Abnahmekriterien.
+- TIEFE.md ZUERST LESEN. Befund, Recherche und Umbauplan stehen dort samt
+  Abnahmekriterien und dem, was davon widerlegt wurde.
+- E4 (Entfaltungsplan): nicht alles ab Minute eins zeigen. Betriebskosten ab
+  Ebene 1, Sorten ab 2, Rivale ab 3 (steht schon), Meilenstein-Anzeige und
+  Max-Buy spaeter. Die Stimmen kuendigen jede Stufe an.
+- KOSTENKURVEN. 83 % des Geldes gehen in Raeume - die beiden Ketten sind als
+  Kaufentscheidung fast Dekoration. Das ist der offene Punkt hinter der
+  Entscheidungsdichte, und E2 war nicht das Werkzeug dafuer.
 - Echter Playtest mit Fremden (itch.io, r/incremental_games). Der einzige
   Abnahmepunkt, den kein Skript ersetzen kann.
-- Kettenstufe 3 (Professor, Pate) wird nie gekauft - billiger machen oder
-  streichen, nach dem Playtest entscheiden.
-- Die letzte Ebene ist mit 98 min die laengste. Hebel: demandDecay.
+- Die letzte Ebene ist mit 90 min die laengste. Hebel: demandDecay.
 - KEIN NEUSTART IM SPIEL. Nach der Schlussbilanz (und bei einem abgelehnten
   Speicherstand) gibt es keinen Weg, von vorn anzufangen - nur `reset()` in der
   Konsole, und das nur im Entwicklungsbuild. Vor jedem oeffentlichen Build

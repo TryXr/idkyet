@@ -11,9 +11,19 @@ Abschnitt 2a und E1 hier. Der Befund in Abschnitt 1 ist davon unberuehrt - er
 beschreibt das Modell, nicht das Thema.
 
 STAND 2026-08-27: Schritt 0 (Thema), Schritt 1 (E1, Pflanzen-Kreislauf und
-Betriebskosten) und Schritt 2 (E3, Konkurrenz) sind GEBAUT und durchgemessen.
-Was dabei herauskam - auch das, was nicht aufging - steht in BALANCING.md.
-E2 (Sorten) und E4 (Entfaltung) stehen noch aus.
+Betriebskosten), Schritt 2 (E3, Konkurrenz) und Schritt 3 (E2, Sorten) sind
+GEBAUT und durchgemessen. Was dabei herauskam - auch das, was nicht aufging -
+steht in BALANCING.md. Offen ist nur noch E4 (Entfaltung).
+
+VON DEN DREI NEUEN ABNAHMEKRITERIEN aus Abschnitt 5 sind zwei erfuellt und
+eines widerlegt:
+
+    1. Aktiv schlaegt idle um >= 1.5x       ERFUELLT, Faktor 1.84
+    3. Streuung ueber Seeds                 ERFUELLT, Faktor 1.01 -> 1.28
+    2. Entscheidungsdichte >= 30 %          VERFEHLT, und zwar schlechter
+                                            als vorher: 15 % -> 7 %
+
+Der dritte Punkt ist der wichtige Befund von Schritt 3, siehe unten.
 
 DAS ABBRUCHKRITERIUM AUS ABSCHNITT 5 HAT GEGRIFFEN, und zwar anders als
 erwartet. Der Rivale hebt den Aktiv/Idle-Faktor der ZIELWAHL nur von 1.09 auf
@@ -32,7 +42,30 @@ KONSEQUENZ: Die Zielwahl ist als TRAEGER des aktiven Spiels widerlegt, wie es
 das Abbruchkriterium vorsah. Sie bleibt trotzdem drin, weil die Konkurrenz sie
 zu einem Rennen mit spuerbaren Kosten macht (ein unaufmerksamer Spieler verliert
 22 Gebiete, ein aufmerksamer eines). Die Hauptentscheidung ist ab jetzt der
-Regler, und die zweite Baustelle bleibt die KAUFENTSCHEIDUNG - dafuer ist E2 da.
+Regler, und die zweite Baustelle bleibt die KAUFENTSCHEIDUNG.
+
+E2 SOLLTE DIESE ZWEITE BAUSTELLE SCHLIESSEN. SIE TUT ES NICHT - und der Grund
+ist derselbe wie beim Rivalen: der Eingriff wurde einer Kennzahl zugeordnet,
+die er strukturell nicht bewegen kann.
+
+Die Sorten wirken GLOBAL: mehr Ertrag ueberall, mehr Plaetze ueberall, mehr
+Absatz ueberall. Ein globaler Faktor auf einer Seite verschiebt aber nur, WIE
+WEIT die beiden Seiten auseinanderliegen - nicht die Rangfolge innerhalb einer
+Seite. Die Entscheidungsdichte misst genau diese Rangfolge, also faellt sie
+sogar (15 % -> 7 %, bei unveraendertem Bedarf durchgemessen).
+
+Und die Messung zeigt den eigentlichen Grund, warum die Kaufentscheidung duenn
+ist: IN JEDEM SEED GEHEN RUND 83 % DES GELDES IN RAEUME, und zwar mit oder ohne
+Sorten. Die beiden Helfer-Ketten teilen sich den Rest zu je 9 %. Solange eine
+Kategorie vier Fuenftel des Budgets bindet, gibt es bei den anderen nichts zu
+entscheiden - das ist ein Problem der KOSTENKURVEN, nicht der Belohnungen, und
+E2 war nie das Werkzeug dafuer.
+
+Was E2 dagegen liefert und was ohne ihn fehlte: 120 verschiedene statt 120
+gleicher Belohnungen (Befund 1.5), eine sichtbare Sammlung, und zum ersten Mal
+Streuung zwischen Durchlaeufen (ohne Sorten liegen fuenf Seeds zwischen 9.33
+und 9.45 h, mit Sorten zwischen 5.46 und 6.98 h). Das ist Abnahmekriterium 3,
+und es war vorher nicht erfuellbar.
 
 Dieses Dokument ergaenzt CLAUDE.md, es ersetzt es nicht.
 

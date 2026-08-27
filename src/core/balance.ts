@@ -128,7 +128,15 @@ export const BALANCE = {
   levels: {
     /** Gesamtbedarf aller Gebiete der Stufe 0, in Ware. */
     demand0: 45,
-    demandMult: 13,
+    /**
+     * Angehoben von 13 auf 16.5, als die Sorten dazukamen (E2). Ein volles
+     * Sortenbeet verdoppelt den Ertrag und erhoeht Plaetze und Absatz - ohne
+     * Gegenrechnung war der Durchlauf von 5.56 h auf 2.80 h eingebrochen.
+     * Warum dieser Hebel und nicht `rooms.qualityMult`: der Bedarf wirkt je
+     * Stufe, die Raumqualitaet ueber die ganze Leiter - und die Leiter endet
+     * oben, die Stufen nicht (BALANCING.md).
+     */
+    demandMult: 16.5,
     /**
      * Der Zuwachs je Stufe KLINGT AB. Frueh soll der Bedarf schneller wachsen
      * als der Durchsatz (dadurch werden die Stufen laenger und gewichtiger),
@@ -170,6 +178,29 @@ export const BALANCE = {
     spread: 3,
     /** Aufschlag auf den Bedarf, wenn ein Gebiet zurueckerobert werden muss. */
     penalty: 1.5,
+  },
+
+  /**
+   * SORTEN. Jede Uebernahme bringt eine mit, jede hat genau EINEN Vorteil.
+   *
+   * Die Staerken SUMMIEREN sich (siehe strains.ts), sie multiplizieren sich
+   * nicht: bei rund 20 Sorten je Art landet man ungefaehr beim Doppelten. Gross
+   * genug, dass die Sammlung spuerbar ist, klein genug, dass eine einzelne
+   * Uebernahme das Spiel nicht umwirft.
+   */
+  strain: {
+    /**
+     * Mittlere Staerke eines Vorteils. Klein, aber sie summiert sich: nach
+     * 120 Uebernahmen steht das Beet bei Ertrag x2.0, Plaetze x1.8, Absatz
+     * x1.5 und Strom x0.65. Groesser gewaehlt (0.05) blaeht sich die letzte
+     * Ebene auf, weil der Bedarf dagegenhalten muss und die Raumleiter oben
+     * endet - durchgemessen in BALANCING.md.
+     */
+    power: 0.03,
+    /** Streuung: manche Sorten sind sichtbar besser als andere. */
+    sigma: 0.9,
+    /** Umrechnung fuer die Rentensorte: die mittlere Staerke wird zu x2. */
+    rentScale: 33,
   },
 
   /** Streuung der Gebiete. Ohne sie waere die Zielwahl gleichgueltig. */

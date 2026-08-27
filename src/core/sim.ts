@@ -21,9 +21,12 @@ import {
   unitCost, type ChainKey,
 } from './chains.js';
 import {
-  bestQuality, bestTier, billedPotential, idlePlants, production, roomCost, roomCount,
-  roomSeats, totalSeats,
+  bestQuality, bestTier, billedPotential, production, roomCost, roomCount, roomSeats,
 } from './rooms.js';
+import {
+  applyStrain, boostedProduction, boostedSeats, noBonuses, salesFactor, seedFactor,
+  upkeepFactor, yieldFactor, type Bonuses,
+} from './strains.js';
 import {
   allOwned, bestTarget, deliver, firstOpen, fraction, loseTo, missing, rentOf,
   rivalTargets, type Territory,
@@ -67,6 +70,11 @@ export class Sim {
   storageLevel = 0;
   /** Renten aus bereits abgeschlossenen Ebenen. */
   pastRent = 0;
+  /**
+   * Die gesammelten Sorten. Kein eigener Zustand, sondern eine Ableitung aus
+   * Seed und Besitz - deshalb steht davon auch nichts im Speicherstand.
+   */
+  bonuses: Bonuses = noBonuses();
   /** Geglaetteter Ertrag pro Sekunde, fuer Anzeige und Kaufprognosen. */
   incomeRate = 0;
 
@@ -94,6 +102,24 @@ export class Sim {
     this.events.emit(event);
   }
 
+  /**
+   * Das Sortenbeet neu zusammenzaehlen.
+   *
+   * Gerechnet statt gespeichert: abgeschlossene Ebenen gehoeren komplett dir,
+   * also liefert der Seed ihre Sorten jederzeit wieder - genauso, wie die
+   * Gebiete selbst beim Laden neu erzeugt werden. Das haelt den Speicherstand
+   * klein und kann gar nicht auseinanderlaufen. Aufgerufen wird es nur bei
+   * einer Uebernahme und beim Laden, also ein paar Dutzend Mal im Durchlauf.
+   */
+  private recomputeBonuses(): void {
+    const bonuses = noBonuses();
+    for (let level = 0; level < this.level; level++) {
+      for (const t of generateLevel(level, this.seed)) applyStrain(bonuses, t.strain);
+    }
+    for (const t of this.territories) if (t.owned) applyStrain(bonuses, t.strain);
+    this.bonuses = bonuses;
+  }
+
   // --- Ableitungen ---------------------------------------------------------
 
   /** Gaertner, die wirklich pflegen (Meilensteine eingerechnet). */
@@ -112,12 +138,21 @@ export class Sim {
   }
 
   /**
+   * Ernte je Sekunde bei voller Pflege: Pflanzen in ihren Raeumen, veredelt um
+   * die gesammelten Sorten. Die eine Stelle, an der alle drei zusammenkommen -
+   * alles andere im Spiel rechnet mit dieser Zahl weiter.
+   */
+  capacity(): number {
+    return boostedProduction(this.activePlants(), this.rooms, this.bonuses);
+  }
+
+  /**
    * Pflege, 0 bis 1. Weiche Kurve statt hartem Minimum: ein Gaertner mehr
    * bringt IMMER etwas, nur immer weniger. Ein hartes min() waere wieder das
    * Thermostat aus TIEFE.md, Befund 1.2 - dann gaebe es nichts abzuwaegen.
    */
   care(): number {
-    const need = production(this.activePlants(), this.rooms);
+    const need = this.capacity();
     if (need <= 0) return 1;
     const ratio = (this.gardeners() * BALANCE.care.perGardener) / need;
     return 1 - Math.exp(-ratio);
@@ -125,7 +160,7 @@ export class Sim {
 
   /** Ernte je Sekunde: Pflanzen mal Raumqualitaet mal Pflege mal Strom. */
   output(): number {
-    return production(this.activePlants(), this.rooms) * this.care() * this.powerShare;
+    return this.capacity() * this.care() * this.powerShare;
   }
 
   /**
@@ -137,27 +172,29 @@ export class Sim {
    * zahlen, und das Erste, was ein Neuling liest, waere eine Mahnung.
    */
   upkeepRate(): number {
-    return billedPotential(this.rooms) * levelPrice(this.level) * BALANCE.upkeep.share;
+    return billedPotential(this.rooms) * levelPrice(this.level) * BALANCE.upkeep.share
+      * upkeepFactor(this.bonuses);
   }
 
   /** Ernte, die ein neuer Steckling kostet. Waechst mit der besten Raumstufe. */
   seedCost(): number {
-    return BALANCE.plant.seedCost0 *
-      Math.pow(BALANCE.plant.seedCostMult, bestTier(this.rooms));
+    return BALANCE.plant.seedCost0
+      * Math.pow(BALANCE.plant.seedCostMult, bestTier(this.rooms))
+      * seedFactor(this.bonuses);
   }
 
   /** Ernte je Sekunde, die abgesetzt werden koennte. */
   sellRate(): number {
-    return this.sellers() * BALANCE.sell.sellRate;
+    return this.sellers() * BALANCE.sell.sellRate * salesFactor(this.bonuses);
   }
 
   seats(): number {
-    return totalSeats(this.rooms);
+    return boostedSeats(this.rooms, this.bonuses);
   }
 
   /** Pflanzen ohne Platz - das Signal fuer den naechsten Raum. */
   idle(): number {
-    return idlePlants(this.plants, this.rooms);
+    return Math.max(0, this.plants - this.seats());
   }
 
   /**
@@ -186,7 +223,7 @@ export class Sim {
    * die niemand abholt? Voll, wenn der Absatz hinter der Ernte zurueckbleibt.
    */
   sellNeed(): number {
-    const out = production(this.activePlants(), this.rooms) * this.care();
+    const out = this.capacity() * this.care();
     if (out <= 0) return 0;
     return Math.max(0, Math.min(1, 1 - this.sellRate() / out));
   }
@@ -195,15 +232,20 @@ export class Sim {
     // Gerechnet wird mit VOLLER Pflege, nicht mit dem aktuellen Ertrag: sonst
     // schrumpfte das Lager genau dann, wenn die Pflege einbricht - und der
     // Spieler verlaere Ware, weil er knapp bei Kasse ist.
-    const full = production(this.activePlants(), this.rooms);
-    const byHand = BALANCE.manual.cookPortion * bestQuality(this.rooms) * this.handPlants();
-    return Math.max(full, byHand) * BALANCE.storage.bufferSeconds *
+    const full = this.capacity();
+    return Math.max(full, this.handHarvest()) * BALANCE.storage.bufferSeconds *
       Math.pow(BALANCE.storage.bufferPerLevel, this.storageLevel);
   }
 
   /** Pflanzen, die der Spieler von Hand abernten kann - mindestens die erste. */
   private handPlants(): number {
     return Math.max(1, this.activePlants());
+  }
+
+  /** Was ein Klick auf "Ernten" bringt. Die UI zeigt dieselbe Zahl an. */
+  handHarvest(): number {
+    return BALANCE.manual.cookPortion * bestQuality(this.rooms) * this.handPlants()
+      * yieldFactor(this.bonuses);
   }
 
   /** Rente aller uebernommenen Gebiete, auch der frueheren Ebenen. */
@@ -320,6 +362,7 @@ export class Sim {
       revenue += result.revenue;
       this.storage -= result.sold;
       if (result.taken) {
+        this.recomputeBonuses();
         this.emit({
           type: 'territoryTaken', level: this.level, id: target.id,
           name: target.name, rent: target.rent, at: this.time,
@@ -380,6 +423,7 @@ export class Sim {
     this.pastRent += rentOf(this.territories);
     this.level++;
     this.territories = generateLevel(this.level, this.seed);
+    this.recomputeBonuses();
     this.targetId = null;
     this.emit({ type: 'levelUp', level: this.level, at: this.time });
   }
@@ -395,8 +439,7 @@ export class Sim {
    * wirklich hat: "wie lange, wenn ich jetzt verkaufe?"
    */
   projectedRate(): number {
-    const full = production(this.activePlants(), this.rooms) * this.care() * this.powerShare;
-    const sold = Math.min(full, this.sellRate());
+    const sold = Math.min(this.output(), this.sellRate());
     return sold * levelPrice(this.level) + this.rentPerSecond()
       - this.upkeepRate() * this.powerShare;
   }
@@ -433,7 +476,7 @@ export class Sim {
    * was ein Klick bringt, ganz ohne Erklaerung.
    */
   cookByHand(): number {
-    const amount = BALANCE.manual.cookPortion * bestQuality(this.rooms) * this.handPlants();
+    const amount = this.handHarvest();
     const back = amount * this.seedShare;
     const keep = amount - back;
     const room = Math.max(0, this.storageCap() - this.storage);
@@ -651,6 +694,7 @@ export class Sim {
       t.supplied = supplied;
       t.owned = supplied >= t.demand - 1e-9;
     });
+    sim.recomputeBonuses();
     sim.finished = save.level >= maxLevel() && allOwned(sim.territories);
     return sim;
   }

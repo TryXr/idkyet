@@ -58,7 +58,7 @@ export const VOICE_LINES: readonly VoiceLine[] = [
   enter('start-2', 0, 'Der Buchhalter', 'Ein Badezimmer, eine Pflanze, kein Kapital. Was du zurücklegst, wird die zweite Pflanze. Was du verkaufst, wird Geld. Beides geht nicht, ich habe es nachgerechnet.'),
   unit('start-3', 0, 'cook', 0, 'Kevin', 'Der Gärtner gießt jetzt für dich. Du musst nicht mehr selbst. Ich fand Gießen schön.'),
   unit('start-4', 0, 'sell', 0, 'Der Buchhalter', 'Ein Dealer. Ab jetzt verkauft sich das von allein, auch wenn du nicht hinsiehst.'),
-  on('start-5', 0, 'territoryTaken', 'Die Prophetin', 'Duisburg ist versorgt. Es gehört uns. Es zahlt jetzt. Für immer.'),
+  on('start-5', 0, 'territoryTaken', 'Die Prophetin', 'Duisburg ist versorgt. Es gehört uns, es zahlt, und es hat uns seine Sorte dagelassen. Jedes Gebiet lässt etwas da. Am Ende sind wir aus lauter Orten zusammengesetzt.'),
 
   // --- 1 Deutschland -----------------------------------------------------
   enter('de-1', 1, 'Kevin', 'Ganz Deutschland! Also erstmal Düsseldorf. Aber das zählt auch.'),
@@ -100,6 +100,7 @@ export const VOICE_LINES: readonly VoiceLine[] = [
   enter('outer-2', 6, 'Kevin', 'Ich hab den Asteroiden Namen gegeben. Der große da heißt Kevin. Nach mir.'),
   enter('outer-3', 6, 'Die Prophetin', 'Noch ein Mond. Noch ein Ring. Noch einer. Wir sind so nah.'),
   room('outer-4', 6, 10, 'Kevin', 'Ein Orbitalgewächshaus. Das dreht sich, damit die Pflanzen nicht wegschweben. Daran hat jemand gedacht.'),
+  enter('outer-5', 6, 'Der Buchhalter', 'Im Beet steht aus jedem Ort etwas, den wir je beliefert haben. Duisburg ist immer noch dabei. Ich lasse das so.'),
 
   // --- 7 Interstellar (Ende) ---------------------------------------------
   enter('inter-1', 7, 'Die Prophetin', 'Andere Sterne. Andere Kunden. Es hört nicht auf.'),
@@ -137,7 +138,7 @@ export class VoiceDirector {
       return;
     }
     // Kein Merken, welcher Kauf der erste war: eine Zeile, die beim ersten
-    // Chemiker noch zu hoch lag, soll beim naechsten fallen. Dass jede Zeile
+    // Botaniker noch zu hoch lag, soll beim naechsten fallen. Dass jede Zeile
     // nur einmal kommt, regelt `fired` - die Merkmengen hier haben genau das
     // verhindert und zwei Zeilen unerreichbar gemacht.
     if (event.type === 'roomBought') {

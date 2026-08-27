@@ -5,7 +5,7 @@
  * pruefbar sind aber die Eigenschaften, ohne die es sicher scheitert:
  *
  *   1. Die erste Minute traegt: von Hand kochen und verkaufen bringt zuegig
- *      den ersten Junkie und den ersten Dealer, und die beenden das Klicken.
+ *      den ersten Gärtner und den ersten Dealer, und die beenden das Klicken.
  *   2. Es gibt IMMER etwas zu tun, oder wenigstens eine Wartezeit, die sagt,
  *      wann es wieder etwas zu tun gibt.
  *   3. An jedem Kauf steht, was er kostet und wann er moeglich ist.
@@ -56,7 +56,7 @@ console.log('\n=== Erste Minute: beide Knöpfe von Hand ===');
     if (firstWorker === Infinity && sim.cash.gte(sim.unitCost('cook', 0))) firstWorker = t;
     if (firstDealer === Infinity && sim.cash.gte(sim.unitCost('sell', 0))) firstDealer = t;
   }
-  check('Genug für den ersten Junkie in unter 30 s', firstWorker <= 30, `nach ${firstWorker} s`);
+  check('Genug für den ersten Gärtner in unter 30 s', firstWorker <= 30, `nach ${firstWorker} s`);
   check('Genug für den ersten Dealer in unter 2 min', firstDealer <= 120, `nach ${firstDealer} s`);
 
   // Und die Helfer beenden das Klicken.
@@ -66,7 +66,7 @@ console.log('\n=== Erste Minute: beide Knöpfe von Hand ===');
   hired.buyUnit('sell', 0);
   const before = hired.cash;
   for (let t = 0; t < 120; t++) hired.tick();
-  check('Mit Junkie und Dealer läuft es von allein', hired.cash.gt(before),
+  check('Mit Gärtner und Dealer läuft es von allein', hired.cash.gt(before),
     `${fmt(before)} -> ${fmt(hired.cash)}`);
   check('Die Handknöpfe verschwinden', !buildViewModel(hired).hands.visible);
 
@@ -175,7 +175,7 @@ console.log('\n=== Max-Buy und Aktionen ===');
   probe.cash = probe.cash.mul(10).add(10_000);
 
   const want = probe.affordableUnits('cook', 0);
-  check('Max-Buy hat etwas anzubieten', want > 0, `${want}× Junkie`);
+  check('Max-Buy hat etwas anzubieten', want > 0, `${want}× Gärtner`);
   const quoted = probe.unitBulkCost('cook', 0, want);
   const before = probe.cash;
   const bought = probe.buyUnits('cook', 0, want);

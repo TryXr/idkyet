@@ -14,6 +14,7 @@ import { BALANCE, LEVELS } from './balance.js';
 import { CONFIG } from './config.js';
 import { placeName } from '../content/places.js';
 import { createTerritory, type Territory } from './territory.js';
+import { makeStrain, rentFactor } from './strains.js';
 import { Rng } from './rng.js';
 
 /** Gesamtbedarf aller Gebiete einer Stufe, in Ware. */
@@ -56,13 +57,23 @@ export function generateLevel(level: number, seed: number): Territory[] {
 
   const rentMean = rawRent.reduce((a, b) => a + b, 0) / count;
 
+  // Die Sorten werden ZULETZT gewuerfelt. Das ist kein Schoenheitsfehler,
+  // sondern Absicht: so bleiben Bedarf, Preis und Rente Zahl fuer Zahl
+  // dieselben wie vor E2, und die gemessene Balance ist weiter vergleichbar.
+  const strains = Array.from({ length: count }, (_, i) =>
+    makeStrain(placeName(level, i), rng));
+
   return rawDemand.map((d, i) => {
     const demand = d * demandScale;
     const price = (rawPrice[i] ?? 1) * priceScale;
     // Die Rente haengt am Wert des Gebiets, streut aber eigenstaendig: manche
     // Staedte zahlen besser, als ihre Groesse vermuten laesst.
     const worth = demand * price;
-    const rent = worth / BALANCE.levels.rentSeconds * ((rawRent[i] ?? 1) / rentMean);
-    return createTerritory(i, placeName(level, i), demand, price, rent);
+    const strain = strains[i]!;
+    // Die Rentensorte wirkt nur hier - deshalb wird sie gleich eingerechnet
+    // statt spaeter als Sonderfall. Dadurch sieht die Zielwahl sie von allein.
+    const rent = worth / BALANCE.levels.rentSeconds
+      * ((rawRent[i] ?? 1) / rentMean) * rentFactor(strain);
+    return createTerritory(i, placeName(level, i), demand, price, rent, strain);
   });
 }

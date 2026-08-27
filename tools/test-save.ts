@@ -39,7 +39,7 @@ check('Ebene gleich', restored.level === original.level, `Ebene ${restored.level
 check('Ketten gleich',
   JSON.stringify(restored.cook) === JSON.stringify(original.cook) &&
   JSON.stringify(restored.sell) === JSON.stringify(original.sell),
-  `Koch ${restored.cook.map(c => Math.floor(c)).join('/')}`);
+  `Gärtner ${restored.cook.map(c => Math.floor(c)).join('/')}`);
 check('Raeume gleich', JSON.stringify(restored.rooms) === JSON.stringify(original.rooms));
 check('Versorgung der Gebiete gleich',
   restored.territories.every((t, i) => Math.abs(t.supplied - original.territories[i]!.supplied) < 1e-9));

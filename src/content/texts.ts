@@ -15,6 +15,7 @@ export const HINTS = {
   target: 'Die Ernte geht immer ins gewählte Gebiet. Ist es voll, gehört es dir und zahlt dauerhaft.',
   map: 'Klick auf ein Gebiet macht es zum Ziel. Gefüllte Gebiete gehören dir. Mausrad zoomt, Ziehen verschiebt.',
   seed: 'Was du zurücklegst, wird zu neuen Pflanzen. Was du verkaufst, wird zu Geld. Beides geht nicht.',
+  strains: 'Jedes übernommene Gebiet lässt dir seine Sorte da. Sie wirkt für immer und überall.',
 } as const;
 
 export const HANDS = {
@@ -31,6 +32,15 @@ export const SEED = {
   title: 'Ernte',
   back: 'zurücklegen',
   sell: 'verkaufen',
+} as const;
+
+/** Das Sortenbeet. Die Sammlung, und der einzige Ort, an dem sie zusammensteht. */
+export const STRAINS = {
+  title: 'Sorten',
+  /** Bekommt die Anzahl vorangestellt. */
+  count: 'im Beet',
+  /** Steht am Zielgebiet und sagt, was die Übernahme abwirft. */
+  brings: 'bringt',
 } as const;
 
 /** Warnungen, die oben im Bedienfeld stehen, wenn sie zutreffen. */

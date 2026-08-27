@@ -18,8 +18,9 @@ import {
 } from '../core/chains.js';
 import { roomName, roomQuality, roomSeats } from '../core/rooms.js';
 import { fraction, missing, type Territory } from '../core/territory.js';
+import { bonusLines, strainEffect, strainTag } from '../core/strains.js';
 import { levelName, levelPrice, maxLevel } from '../core/world.js';
-import { ENDING, HANDS, HINTS, SEED, WARNINGS } from '../content/texts.js';
+import { ENDING, HANDS, HINTS, SEED, STRAINS, WARNINGS } from '../content/texts.js';
 import type { Sim } from '../core/sim.js';
 
 // --- Aktionen -------------------------------------------------------------
@@ -95,6 +96,21 @@ export interface TargetView {
   priceText: string;
   rentText: string;
   etaText: string;
+  /** Was die Uebernahme abwirft. Steht VOR der Uebernahme da, sonst waere die
+   *  Zielwahl blind und die Sorte nur eine Ueberraschung hinterher. */
+  strainText: string;
+}
+
+/**
+ * Das Sortenbeet. Wie der Regler kein Kaufabschnitt, sondern eine eigene Form:
+ * hier wird nichts gekauft, hier steht, was man schon hat.
+ */
+export interface StrainView {
+  title: string;
+  hint: string;
+  countText: string;
+  /** Die fuenf Faktoren, je einer je Sortenart. */
+  lines: string[];
 }
 
 /**
@@ -136,6 +152,8 @@ export interface ViewModel {
   warnings: string[];
   meters: Meter[];
   seed: SeedView;
+  /** Erst da, wenn das erste Gebiet uebernommen ist - vorher gaebe es nichts zu zeigen. */
+  strains: StrainView | null;
   target: TargetView | null;
   sections: Section[];
   facts: Array<[string, string]>;
@@ -280,6 +298,19 @@ function targetView(sim: Sim, territory: Territory | null): TargetView | null {
     priceText: `${fmt(territory.price)} je Gramm`,
     rentText: `${fmt(territory.rent)} / s Rente`,
     etaText: rate > 0 ? whenText(rest / rate) : 'kein Nachschub',
+    strainText:
+      `${STRAINS.brings} ${territory.strain.name} · ${strainEffect(territory.strain)}`,
+  };
+}
+
+/** Das Beet, sobald es eines gibt. */
+function strainView(sim: Sim): StrainView | null {
+  if (sim.bonuses.count <= 0) return null;
+  return {
+    title: STRAINS.title,
+    hint: HINTS.strains,
+    countText: `${sim.bonuses.count} ${STRAINS.count}`,
+    lines: bonusLines(sim.bonuses),
   };
 }
 
@@ -326,6 +357,7 @@ function endingPart(sim: Sim): Ending | null {
       ['Räume gebaut', `${rooms}`],
       ['Größter Raum', roomName(biggest)],
       ['Pflanzen', fmt(sim.plants)],
+      ['Sorten gesammelt', `${sim.bonuses.count}`],
       ['Gärtner', String(Math.floor(sim.cook[0] ?? 0))],
       ['Verkäufer', String(Math.floor(sim.sell[0] ?? 0))],
       ['Rente', `${fmt(sim.rentPerSecond())} / s`],
@@ -385,8 +417,7 @@ export function buildViewModel(sim: Sim): ViewModel {
         label: HANDS.cook,
         action: { kind: 'cook' },
         cost: sim.cash,
-        costText: `+${fmt(BALANCE.manual.cookPortion * roomQuality(0) *
-          Math.max(1, Math.min(sim.plants, sim.seats())))} Ernte`,
+        costText: `+${fmt(sim.handHarvest())} Ernte`,
         enabled: sim.storage < cap,
       },
       sell: {
@@ -430,6 +461,7 @@ export function buildViewModel(sim: Sim): ViewModel {
       },
     ],
     seed: seedView(sim),
+    strains: strainView(sim),
     target: targetView(sim, target),
     sections: [
       chainSection(sim, 'cook'),
@@ -451,7 +483,7 @@ export function buildViewModel(sim: Sim): ViewModel {
 /** Die Gebiete fuer Karte und Liste. */
 export function territoryRows(sim: Sim): Array<{
   id: number; name: string; fraction: number; owned: boolean; isTarget: boolean;
-  rival: number; lost: boolean;
+  rival: number; lost: boolean; strain: string; strainTag: string;
 }> {
   const target = sim.target();
   return sim.territories.map(t => ({
@@ -462,6 +494,8 @@ export function territoryRows(sim: Sim): Array<{
     isTarget: target?.id === t.id,
     rival: t.demand > 0 ? Math.min(1, t.rival / t.demand) : 0,
     lost: t.lost,
+    strain: t.strain.name,
+    strainTag: strainTag(t.strain),
   }));
 }
 

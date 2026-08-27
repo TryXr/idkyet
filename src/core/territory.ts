@@ -8,11 +8,17 @@
  *
  * Genau daraus entsteht die Zielwahl von selbst: ein grosses Gebiet zahlt mehr,
  * braucht aber lange; ein kleines ist schnell deins.
+ *
+ * Seit E2 traegt jedes Gebiet ausserdem eine SORTE. Sie ist die eigentliche
+ * Belohnung der Uebernahme - das Bargeld gibt es unterwegs ohnehin.
  */
+import type { Strain } from './strains.js';
 
 export interface Territory {
   readonly id: number;
   readonly name: string;
+  /** Die Sorte, die es bei der Uebernahme abwirft. Kommt aus dem Seed. */
+  readonly strain: Strain;
   /** Ware, die bis 100 % noetig ist. Steigt, wenn die Konkurrenz zuerst da war. */
   demand: number;
   /** Bargeld je Ware. */
@@ -29,9 +35,11 @@ export interface Territory {
 }
 
 export function createTerritory(
-  id: number, name: string, demand: number, price: number, rent: number,
+  id: number, name: string, demand: number, price: number, rent: number, strain: Strain,
 ): Territory {
-  return { id, name, demand, price, rent, supplied: 0, owned: false, rival: 0, lost: false };
+  return {
+    id, name, strain, demand, price, rent, supplied: 0, owned: false, rival: 0, lost: false,
+  };
 }
 
 /** Versorgungsgrad 0..1. */

@@ -122,9 +122,11 @@ Was sie kostet, je Spielweise:
 
 | Spielweise                        | Dauer   | verlorene Gebiete |
 |-----------------------------------|--------:|------------------:|
-| aufmerksam (Regler + Zielwahl)    | 5.56 h  |                 1 |
-| Zielwahl stur der Reihe nach      | 6.18 h  |                14 |
-| Regler unberuehrt bei 50 %        | 10.07 h |                22 |
+| aufmerksam (Regler + Zielwahl)    | 5.46 h  |                 1 |
+| Zielwahl stur der Reihe nach      | 5.97 h  |                13 |
+| Regler unberuehrt bei 50 %        | 10.06 h |                20 |
+
+(Zahlen vom 2026-08-27 nach E2. Davor: 5.56 / 6.18 / 10.07 h.)
 
 ## 5b. Aktiv gegen idle - die Messung stellte lange die falsche Frage
 
@@ -139,12 +141,88 @@ bestraft).
 
 Die richtige Frage ist der REGLER, denn den stellt niemand automatisch:
 
-    Regler nachgestellt   5.56 h
-    Regler unberuehrt    10.07 h
-    Faktor                 1.81   (Vorgabe 1.5 bis 2)
+    Regler nachgestellt   5.46 h
+    Regler unberuehrt    10.06 h
+    Faktor                 1.84   (Vorgabe 1.5 bis 2)
 
 Der Regressionslauf prueft ab jetzt genau das. Die Zielwahl bleibt als
 Nebenkriterium drin - sie bringt reale 11 %, nur traegt sie die Vorgabe nicht.
+
+## 5c. Die Sorten (E2, eingebaut am 2026-08-27)
+
+Jedes Gebiet bringt bei der Uebernahme genau EINEN dauerhaften Vorteil mit.
+Fuenf davon wirken ueberall und SUMMIEREN sich, der sechste nur im eigenen
+Gebiet:
+
+    +Ertrag  +Plaetze  +Absatz        Faktor = 1 + Summe
+    -Strom   -Stecklinge              Faktor = 1 / (1 + Summe)
+    x2 Rente                          nur dieses Gebiet, gleich in world.ts
+                                      eingerechnet
+
+Staerke je Sorte 0.03 im Mittel, log-normal gestreut (sigma 0.9), also grob
+1.9 % bis 4.7 %. Nach 120 Uebernahmen steht das Beet bei etwa Ertrag x2.0,
+Plaetze x1.8, Absatz x1.5, Strom x0.65.
+
+SUMMIEREN STATT MULTIPLIZIEREN ist keine Feinheit, sondern die Bedingung dafuer,
+dass die Sache ueberhaupt zu balancieren ist: 120 multiplikative Faktoren
+sprengen jede Kurve, eine Summe landet planbar beim Doppelten.
+
+### Was das gekostet hat
+
+Ohne Gegenrechnung fiel der Durchlauf von 5.56 h auf 2.80 h. Gegengesteuert
+wurde ueber `levels.demandMult` (13 -> 16.5), nicht ueber `rooms.qualityMult`:
+der Bedarf wirkt je Stufe, die Raumqualitaet ueber die ganze Leiter - und die
+Leiter endet bei zwoelf Raeumen, die Stufen nicht. Ueber `qualityMult` gedreht
+wurde die letzte Ebene jedes Mal unverhaeltnismaessig lang.
+
+Auch die Sortenstaerke selbst ist ein Hebel, und zwar der teuerste. Gemessen
+bei jeweils passend nachgezogenem Bedarf:
+
+| Staerke | demandMult | Dauer  | letzte Ebene | Rentenanteil |
+|--------:|-----------:|-------:|-------------:|-------------:|
+|    0.00 |       13.0 | 5.56 h |       76 min |          34 %|
+|    0.02 |       15.5 | 5.45 h |       84 min |          39 %|
+|    0.03 |       16.5 | 5.48 h |       91 min |          42 %|
+|    0.05 |       17.0 | 4.73 h |       78 min |          41 %|
+
+Genommen wurde 0.03: die staerkste Stufe, bei der die Kurvenform noch haelt.
+Staerkere Sorten muessen mit noch mehr Bedarf bezahlt werden, und der Bedarf
+waechst exponentiell mit der Ebene - deshalb blaeht sich immer zuerst das Ende
+auf.
+
+### Was sie bringen, und was nicht
+
+STREUUNG UEBER SEEDS - das war Abnahmekriterium 3 und ist erfuellt:
+
+| Sortenstaerke | fuenf Seeds        | Streuung |
+|---------------|--------------------|---------:|
+| 0.00          | 9.33 bis 9.45 h    |     1.01 |
+| 0.03          | 5.46 bis 6.98 h    |     1.28 |
+
+Und die Beete sehen verschieden aus: Seed 1 endet bei Ertrag x2.03, Seed 5 bei
+x1.50, dafuer mit mehr Plaetzen. Zwei Partien sind zum ersten Mal nicht
+dieselbe Partie.
+
+ENTSCHEIDUNGSDICHTE - Abnahmekriterium 2, VERFEHLT und verschlechtert:
+
+| Sortenstaerke | demandMult | Dichte |
+|---------------|-----------:|-------:|
+| 0.00          |       13.0 |   15 % |
+| 0.00          |       16.5 |   12 % |
+| 0.03          |       13.0 |    7 % |
+| 0.03          |       16.5 |    7 % |
+
+Die Sorten selbst druecken die Zahl, nicht das Nachbalancieren. Der Grund ist
+strukturell: ein GLOBALER Faktor hebt alle Optionen einer Seite gleich an und
+laesst die Rangfolge unberuehrt - er schiebt die beiden Seiten nur weiter
+auseinander, und genau deren Abstand misst die Dichte.
+
+Die Messung zeigt dabei den eigentlichen Grund, warum die Kaufentscheidung
+duenn ist, und der hat mit Sorten nichts zu tun: 83 % DES GELDES GEHEN IN
+RAEUME, in jedem Seed, mit und ohne Sorten. Die beiden Helfer-Ketten bekommen
+je 9 %. Solange eine Kategorie vier Fuenftel des Budgets bindet, gibt es bei
+den anderen nichts abzuwaegen. Das ist ein Problem der Kostenkurven und
+gehoert in den naechsten Schritt, nicht in E2.
 
 ## 6. Raeume, Pflanzen, Gebiete
 
@@ -172,26 +250,26 @@ Spiel endet - im Asteroiden-Gewaechshaus.
 
 | Ebene            | Dauer | Ernte/s | Absatz/s | bester Raum            |
 |------------------|------:|--------:|---------:|------------------------|
-| Ruhrgebiet       |  9 min|    0.10 |     0.40 | Badezimmer             |
-| Deutschland      | 32 min|    0.83 |     7.60 | Badezimmer             |
-| Europa           | 31 min|      10 |       36 | Dachboden              |
-| Welt             | 32 min|      79 |      115 | Garage                 |
-| Erdorbit         | 40 min|     494 |      492 | Gewächshaus            |
-| Mond & Mars      | 51 min|  2.46 k |   2.46 k | Lagerhalle             |
-| Aeusseres System | 63 min| 11.94 k |  20.48 k | Plantage               |
-| Interstellar     | 76 min| 58.83 k |  81.93 k | Asteroiden-Gewächshaus |
+| Ruhrgebiet       |  8 min|    0.11 |     0.45 | Badezimmer             |
+| Deutschland      | 28 min|    1.76 |     9.52 | Kleiderschrank         |
+| Europa           | 26 min|      22 |       48 | Dachboden              |
+| Welt             | 28 min|     193 |      184 | Garage                 |
+| Erdorbit         | 35 min|  1.31 k |   1.77 k | Gewächshaus            |
+| Mond & Mars      | 50 min|  8.21 k |   8.16 k | Lagerhalle             |
+| Aeusseres System | 63 min| 53.24 k |  53.23 k | Orbitalgewächshaus     |
+| Interstellar     | 90 min|216.38 k | 216.38 k | Asteroiden-Gewächshaus |
 
-    Gesamtdauer         5.56 h
-    stur der Reihe nach 6.18 h   (kluge Zielwahl lohnt sich)
+    Gesamtdauer         5.46 h
+    stur der Reihe nach 5.97 h   (kluge Zielwahl lohnt sich)
     Uebernahmen         120 von 120
     groesste Luecke     11 min ohne Uebernahme
-    Renten am Ende      34 % des Einkommens
-    Demo (Ebene 1-5)    rund 2.5 h
+    Renten am Ende      44 % des Einkommens
+    Demo (Ebene 1-5)    rund 2.1 h
 
-Die Ebenen wachsen von 9 auf 76 Minuten - deutlich flacher als vorher (9 auf
-110). Grund ist nicht eine Feineinstellung, sondern der Bedarfsanteil: mit dem
-Pflanzen-Kreislauf haengt der Durchsatz an Raumkaeufen, und die kommen
-gleichmaessiger.
+Die Ebenen wachsen von 8 auf 90 Minuten. Vor den Sorten waren es 9 auf 76 - die
+letzte Ebene ist der Preis dafuer, dass der Bedarf gegen die Sorten anziehen
+musste (siehe 5c). Sie bleibt der empfindlichste Punkt der ganzen Kurve, weil
+oben die Raumleiter endet und der Durchsatz nicht mehr mitwaechst.
 
 ## 8. Was am Messwerkzeug schiefging (und nicht am Spiel)
 
@@ -210,12 +288,17 @@ der simulierte Spieler ueberhaupt etwas Sinnvolles tut.
 
 ## 9. Offene Punkte
 
-- ENTSCHEIDUNGSDICHTE 17 %, Ziel 30 % (TIEFE.md, Abschnitt 5). Die zweitbeste
-  Kaufoption liegt im Schnitt bei 65 % der besten - besser als die 12 % vor dem
-  Umbau, aber die Kaufentscheidung ist weiter ueberwiegend Rechnen. Dafuer sind
-  E2 (Sorten) und E3 (Rivale) da.
+- ENTSCHEIDUNGSDICHTE 7 %, Ziel 30 % (TIEFE.md, Abschnitt 5). Weder E2 noch E3
+  konnten das heben, und E2 hat es gesenkt - warum, steht in 5c. Der Hebel
+  liegt woanders: 83 % des Geldes gehen in Raeume, je 9 % in die beiden Ketten.
+  Solange das so ist, gibt es nichts abzuwaegen. Anzugehen ueber die
+  KOSTENKURVEN (`rooms.costMult`, `chain.costTierMult`), nicht ueber weitere
+  Belohnungen.
+- LETZTE EBENE 90 min, die laengste im Spiel. Hebel bleibt `demandDecay`.
 - Offline-Cap 8 h, passt zur Spiellaenge.
 
-ERLEDIGT: Aktiv gegen idle steht bei Faktor 1.81 (siehe 5b). Nicht durch die
+ERLEDIGT: Aktiv gegen idle steht bei Faktor 1.84 (siehe 5b). Nicht durch die
 Konkurrenz, sondern weil die Messung endlich das misst, was ein Spieler
 tatsaechlich selbst entscheidet.
+
+ERLEDIGT: Streuung ueber Seeds, Faktor 1.01 -> 1.28 (siehe 5c).

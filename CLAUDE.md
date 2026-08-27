@@ -255,7 +255,7 @@ heißt ab jetzt, schneller zu verkaufen als jemand anderes. Sie ersetzt die
 gestrichene Hitze als einzige Gegenkraft im Spiel — ohne sie ist die Karte eine
 Checkliste, die man in beliebiger Reihenfolge abarbeitet.
 
-SORTEN (festgelegt am 2026-08-26). Jedes Gebiet bringt bei der Übernahme eine
+SORTEN (eingebaut am 2026-08-27). Jedes Gebiet bringt bei der Übernahme eine
 eigene Sorte mit, deren Name aus dem Ortsnamen entsteht ("Duisburger Nebel",
 "Ganymed Frost") und die genau EINEN dauerhaften Vorteil hat:
 
@@ -263,11 +263,24 @@ eigene Sorte mit, deren Name aus dem Ortsnamen entsteht ("Duisburger Nebel",
     weniger Betriebskosten          |  mehr Absatz je Verkäufer
     weniger Ernte je Steckling      |  doppelte Rente, sonst nichts
 
-Damit ist jede der Übernahmen eine andere Belohnung statt der 120. gleichen,
-und die Zielwahl entscheidet, WAS DU WIRST, nicht nur wie schnell. Beides
-kostet keinen handgeschriebenen Inhalt: Name und Vorteil fallen aus dem Seed.
-Nebenbei entsteht die Sortenliste als Sammlung — sichtbarer Beweis dafür, wo
-man überall war. Warum das nötig ist, steht in TIEFE.md.
+Damit ist jede der Übernahmen eine andere Belohnung statt der 120. gleichen.
+Das kostet keinen handgeschriebenen Inhalt: Name und Vorteil fallen aus dem
+Seed. Nebenbei entsteht die Sortenliste als Sammlung — sichtbarer Beweis dafür,
+wo man überall war. Warum das nötig ist, steht in TIEFE.md.
+
+Die fünf globalen Vorteile SUMMIEREN sich, sie multiplizieren sich nicht: nach
+120 Übernahmen steht das Beet ungefähr bei Ertrag ×2, Plätze ×1.8, Absatz ×1.5.
+Ein Produkt über 120 Faktoren wäre nicht zu balancieren. Die sechste Sorte
+(doppelte Rente) wirkt nur im eigenen Gebiet und ist deshalb schon im Wert des
+Gebiets enthalten — die Zielwahl sieht sie von allein.
+
+KORREKTUR (2026-08-27): Die Sorten machen NICHT die Kaufentscheidung
+interessanter — das war die Erwartung, und sie ist widerlegt. Ein Vorteil, der
+überall gleich wirkt, verschiebt kein Ranking; gemessen fiel die Entscheidungs-
+dichte sogar von 15 % auf 7 %. Was die Sorten liefern, ist STREUUNG: fünf Seeds
+laufen mit ihnen zwischen 5.46 und 6.98 h auseinander, ohne sie alle innerhalb
+von 1 %. Der Hebel für die Kaufentscheidung sind die Kostenkurven, nicht die
+Belohnungen (BALANCING.md 5c).
 
 ### Ebenen: echte Orte, herauszoomende Karte
 
@@ -299,7 +312,7 @@ und Rente. Kein Zusatzsystem, nur eine Folge von Regel 3.
 Zielwert wie bisher: aktiv ca. 1.5 bis 2x Idle-Rate.
 
 KORREKTUR (2026-08-27): Der Träger des aktiven Spiels ist NICHT die Zielwahl,
-sondern der SETZ-REGLER. Gemessen: wer den Regler nachstellt, ist Faktor 1.81
+sondern der SETZ-REGLER. Gemessen: wer den Regler nachstellt, ist Faktor 1.84
 schneller als wer ihn stehen lässt. Die Zielwahl bringt dagegen nur 1.11 — und
 zwar strukturell, nicht wegen falscher Zahlen: das Spiel wählt das Ziel selbst,
 wenn niemand hinsieht, also kann ein idlender Spieler daran gar nicht scheitern.

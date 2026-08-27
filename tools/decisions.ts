@@ -11,10 +11,13 @@
  *      CLAUDE.md behauptet, oder steht es die ganze Zeit still?
  *   3. ENTSCHEIDUNGSDICHTE. Wie oft liegen die beiden besten Kaufoptionen
  *      dicht genug beieinander, dass die Wahl nicht bloss Nachrechnen ist.
+ *   4. WAS DIE SORTEN AENDERN. Sehen zwei Durchlaeufe verschieden aus, und
+ *      kauft man in ihnen Verschiedenes?
  *
  * Gemessen wird gegen dieselbe Kaufpolitik wie ueberall sonst - ein eigener
  * Autoplay hier haette schon einmal ein anderes Spiel gemessen (BALANCING.md).
  */
+import { BALANCE } from '../src/core/balance.js';
 import { Sim } from '../src/core/sim.js';
 import { closeness, decide, tuneSeedShare } from './autoplay.js';
 
@@ -141,4 +144,52 @@ console.log('\n=== 3. Entscheidungsdichte: wie dicht liegen die besten Optionen?
   console.log(`  Davon innerhalb von 10 %:    ${(share * 100).toFixed(0)} %`);
   console.log(`\n  Ziel laut TIEFE.md: mindestens 30 %.` +
     ` ${share >= 0.3 ? 'ERREICHT' : 'NICHT erreicht'}`);
+}
+
+// --- 4. Was die Sorten aendern --------------------------------------------
+/**
+ * Der Punkt, um den es bei E2 wirklich geht: aus 120 gleichen Belohnungen
+ * werden 120 verschiedene (TIEFE.md, Befund 1.5). Pruefbar ist das an zwei
+ * Zahlen - laufen verschiedene Seeds auseinander, und kaufen sie Verschiedenes?
+ *
+ * Die zweite Frage ist die haertere. Ein Vorteil, der ueberall gleich wirkt,
+ * verschiebt zwar das Tempo, aber nicht die Rangfolge der Kaufoptionen. Genau
+ * das ist der Grund, warum die Sorten die Entscheidungsdichte oben NICHT heben.
+ */
+console.log('\n=== 4. Was die Sorten ändern ===\n');
+{
+  const profile = (seed: number) => {
+    const sim = new Sim({ seed });
+    const spend = { cook: 0, sell: 0, room: 0, storage: 0 };
+    while (!sim.finished && sim.time < LIMIT) {
+      const before = sim.cash;
+      sim.tick();
+      const decision = decide(sim);
+      if (decision.kind === 'wait' || decision.kind === 'hand') continue;
+      const paid = before.sub(sim.cash).toNumber();
+      if (paid > 0) spend[decision.kind === 'unit' ? decision.chain! : decision.kind] += paid;
+    }
+    const total = spend.cook + spend.sell + spend.room + spend.storage;
+    return { hours: sim.time / 3600, rooms: spend.room / total, bonuses: sim.bonuses };
+  };
+
+  const seeds = [1, 2, 3, 4, 5];
+  for (const power of [0, BALANCE.strain.power]) {
+    BALANCE.strain.power = power;
+    const runs = seeds.map(profile);
+    const hours = runs.map(r => r.hours);
+    const spread = Math.max(...hours) / Math.min(...hours);
+    console.log(`  Sortenstärke ${power.toFixed(2)}:`);
+    for (const [i, run] of runs.entries()) {
+      console.log(`    Seed ${seeds[i]}  ${run.hours.toFixed(2)} h` +
+        `  ·  Ertrag ×${(1 + run.bonuses.yield).toFixed(2)}` +
+        `  Plätze ×${(1 + run.bonuses.seats).toFixed(2)}` +
+        `  Absatz ×${(1 + run.bonuses.sales).toFixed(2)}` +
+        `  ·  ${(run.rooms * 100).toFixed(0)} % des Geldes in Räume`);
+    }
+    console.log(`    Streuung zwischen den Seeds: Faktor ${spread.toFixed(2)}\n`);
+  }
+  console.log('  Streuen die Durchläufe, sehen zwei Partien verschieden aus.');
+  console.log('  Bleibt der Anteil "Geld in Räume" gleich, kauft man trotzdem dasselbe -');
+  console.log('  dann verschieben die Sorten das Tempo, nicht die Kaufentscheidung.');
 }

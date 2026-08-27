@@ -16,7 +16,10 @@
 import type { Sim } from '../src/core/sim.js';
 import { BALANCE } from '../src/core/balance.js';
 import { TIERS } from '../src/core/chains.js';
-import { billedPotential, production, roomQuality, totalSeats } from '../src/core/rooms.js';
+import { billedPotential, roomQuality } from '../src/core/rooms.js';
+import {
+  boostedProduction, boostedSeats, salesFactor, upkeepFactor, type Bonuses,
+} from '../src/core/strains.js';
 import { levelPrice } from '../src/core/world.js';
 import type { ChainKey } from '../src/core/chains.js';
 
@@ -57,11 +60,17 @@ function reachAfter(tier: number, seconds: number): number {
   return value;
 }
 
-/** Ernte je Sekunde bei diesem Bestand - dieselbe Rechnung wie in der Sim. */
-function outputWith(plants: number, gardeners: number, rooms: readonly number[]): number {
-  const active = Math.min(plants, totalSeats(rooms));
+/**
+ * Ernte je Sekunde bei diesem Bestand - dieselbe Rechnung wie in der Sim,
+ * Sorten eingeschlossen. Ohne sie bewertete die Politik ein anderes Spiel als
+ * das, das laeuft - und der Abstand waechst mit jeder Uebernahme.
+ */
+function outputWith(
+  plants: number, gardeners: number, rooms: readonly number[], bonuses: Bonuses,
+): number {
+  const active = Math.min(plants, boostedSeats(rooms, bonuses));
   if (active <= 0) return 0;
-  const full = production(active, rooms);
+  const full = boostedProduction(active, rooms, bonuses);
   const ratio = (gardeners * BALANCE.care.perGardener) / full;
   return full * (1 - Math.exp(-ratio));
 }
@@ -75,9 +84,10 @@ function netRate(
   sim: Sim, plants: number, gardeners: number, sellers: number, rooms: readonly number[],
 ): number {
   const price = levelPrice(sim.level);
-  const out = outputWith(plants, gardeners, rooms) + EPS;
-  const sold = sellers * BALANCE.sell.sellRate + EPS;
-  const upkeep = billedPotential(rooms) * price * BALANCE.upkeep.share;
+  const b = sim.bonuses;
+  const out = outputWith(plants, gardeners, rooms, b) + EPS;
+  const sold = sellers * BALANCE.sell.sellRate * salesFactor(b) + EPS;
+  const upkeep = billedPotential(rooms) * price * BALANCE.upkeep.share * upkeepFactor(b);
   // WEICHES MINIMUM statt min(): (a*b)/(a+b). Es verhaelt sich wie das
   // Minimum, sobald eine Seite deutlich kleiner ist, hat aber keine Kante -
   // deshalb bringt jeder Kauf etwas, und zwar immer weniger, je weiter die
@@ -96,12 +106,12 @@ function netRate(
  * des Kaufs steht er leer, und die Bewertung saehe nur die Stromrechnung.
  */
 function plantsAfter(sim: Sim, rooms: readonly number[]): number {
-  const seats = totalSeats(rooms);
+  const seats = boostedSeats(rooms, sim.bonuses);
   const have = sim.plants + sim.seedlings;
   if (have >= seats) return seats;
   // Wachstumsrate je Pflanze: was sie erntet, geteilt durch den Stecklingspreis.
   const perPlant = sim.activePlants() > 0
-    ? production(sim.activePlants(), sim.rooms) / sim.activePlants()
+    ? sim.capacity() / sim.activePlants()
     : roomQuality(0);
   const rate = (perPlant * 0.9) / sim.seedCost();
   const lag = HORIZON / (1 + BALANCE.plant.growSeconds / HORIZON);

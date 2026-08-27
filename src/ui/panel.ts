@@ -56,10 +56,14 @@ export class Panel {
   private seedLabel = el('div', 'seed-label');
   private seedInput = el('input', 'seed-range');
   private seedFacts = el('div', 'row-facts');
+  private strainBox = el('section', 'card strains');
+  private strainCount = el('div', 'row-note');
+  private strainLines = el('div', 'strain-lines');
   private targetBox = el('section', 'card target');
   private targetName = el('div', 'target-name');
   private targetBar = el('div', 'bar-fill');
   private targetFacts = el('div', 'row-facts');
+  private targetStrain = el('div', 'row-note');
   private targetEta = el('div', 'wait');
   private sectionBox = el('div', 'sections');
   private facts = el('dl', 'facts');
@@ -98,13 +102,18 @@ export class Panel {
     });
     this.seedBox.append(this.seedLabel, this.seedInput, this.seedFacts);
 
+    // Das Beet. Kein Kaufabschnitt - hier steht nur, was die Uebernahmen
+    // hinterlassen haben. Es taucht erst auf, wenn es das erste gibt.
+    this.strainBox.append(el('h2', '', 'Sorten'), this.strainCount, this.strainLines);
+
     this.targetBox.appendChild(el('h2', '', 'Ziel'));
     const bar = el('div', 'bar');
     bar.appendChild(this.targetBar);
-    this.targetBox.append(this.targetName, bar, this.targetFacts, this.targetEta);
+    this.targetBox.append(
+      this.targetName, bar, this.targetFacts, this.targetStrain, this.targetEta);
 
     this.root.append(head, this.handsBox, this.warnings, this.meterBox,
-      this.seedBox, this.targetBox, this.sectionBox, this.facts);
+      this.seedBox, this.targetBox, this.strainBox, this.sectionBox, this.facts);
 
     for (let i = 0; i < 4; i++) {  // Ebene, Pflanzen, Lager, Durchsatz
       const root = el('div', 'meter');
@@ -132,6 +141,7 @@ export class Panel {
     vm.meters.forEach((meter, i) => this.setMeter(this.meters[i], meter));
     this.setSeed(vm);
     this.setTarget(vm);
+    this.setStrains(vm);
     for (const section of vm.sections) this.setSection(section);
     this.setFacts(vm);
   }
@@ -178,7 +188,23 @@ export class Panel {
     this.targetBar.style.width = `${Math.round(vm.target.fraction * 100)}%`;
     this.targetFacts.textContent =
       `${vm.target.missingText} · ${vm.target.priceText} · ${vm.target.rentText}`;
+    this.targetStrain.textContent = vm.target.strainText;
     this.targetEta.textContent = vm.target.etaText;
+  }
+
+  private setStrains(vm: ViewModel): void {
+    const view = vm.strains;
+    this.strainBox.hidden = view === null;
+    if (!view) return;
+    this.strainBox.title = view.hint;
+    this.strainCount.textContent = view.countText;
+    // Nur neu bauen, wenn sich wirklich etwas geaendert hat - fuenf Zeilen
+    // viermal je Sekunde neu zu erzeugen kostet mehr als der Vergleich.
+    const text = view.lines.join(' · ');
+    if (this.strainLines.dataset.text === text) return;
+    this.strainLines.dataset.text = text;
+    this.strainLines.replaceChildren(
+      ...view.lines.map(line => el('span', 'strain', line)));
   }
 
   // --- Abschnitte ---------------------------------------------------------

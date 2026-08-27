@@ -1,15 +1,15 @@
 /**
  * Die beiden Helfer-Ketten.
  *
- *   KOCHEN     Junkie -> Koch -> Chemiker -> Professor
- *   VERKAUFEN  Dealer -> Straßenboss -> Kartellchef -> Pate
+ *   ZIEHEN     Gärtner -> Grower -> Botaniker -> Professor
+ *   VERKAUFEN  Dealer -> Straßenboss -> Großhändler -> Konzernchef
  *
  * Stufe 0 arbeitet, jede hoehere stellt die darunter ein. Das ist der ganze
  * Trick: die zweite Stufe ist die Ableitung der ersten, die dritte die der
  * zweiten. Dadurch waechst die Produktion POLYNOMIAL, waehrend die Kosten
  * exponentiell steigen - der Motor des Genres (CLAUDE.md, Mathematischer Kern).
  *
- * Und es erklaert sich von selbst: ein Kartellchef verkauft nichts, er stellt
+ * Und es erklaert sich von selbst: ein Konzernchef verkauft nichts, er stellt
  * Leute ein.
  */
 import { BALANCE, COOK_CHAIN, SELL_CHAIN } from './balance.js';
