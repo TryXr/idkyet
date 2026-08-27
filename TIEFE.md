@@ -10,18 +10,34 @@ bekommt eine zweite Verwendung. Beides steht in CLAUDE.md, die Begruendung in
 Abschnitt 2a und E1 hier. Der Befund in Abschnitt 1 ist davon unberuehrt - er
 beschreibt das Modell, nicht das Thema.
 
-STAND 2026-08-27: Schritt 0 (Thema), Schritt 1 (E1, Pflanzen-Kreislauf und
-Betriebskosten), Schritt 2 (E3, Konkurrenz) und Schritt 3 (E2, Sorten) sind
-GEBAUT und durchgemessen. Was dabei herauskam - auch das, was nicht aufging -
-steht in BALANCING.md. Offen ist nur noch E4 (Entfaltung).
+STAND 2026-08-27: ALLE VIER EINGRIFFE SIND GEBAUT und durchgemessen - E1
+(Pflanzen-Kreislauf und Betriebskosten), E3 (Konkurrenz), E2 (Sorten) und E4
+(Entfaltungsplan), dazu Schritt 0 (Thema). Was dabei herauskam - auch das, was
+nicht aufging - steht in BALANCING.md.
+
+Der Entfaltungsplan steht als Tabelle in `balance.ts` (UNFOLD und
+CHAIN_TIER_LEVEL), und `npm test` prueft, dass jede Ebene wirklich etwas
+aufklappt:
+
+    Ebene 1 Ruhrgebiet       Handbetrieb
+    Ebene 2 Deutschland      Lagerausbau, Betriebskosten, Kettenstufe 2
+    Ebene 3 Europa           Sortenbeet, Zehnerkauf
+    Ebene 4 Welt             Kettenstufe 3, Konkurrenz
+    Ebene 5 Erdorbit         Max-Buy, Meilensteine
+    Ebene 6 Mond & Mars      Kettenstufe 4
+    Ebene 7 Aeusseres System Konkurrenz ruestet auf
+    Ebene 8 Interstellar     nichts Neues (Schlussbogen)
+
+Erste und letzte Ebene sollen ausdruecklich nichts aufklappen: die eine ist der
+Ausgangszustand, die andere laesst alles zusammenlaufen.
 
 VON DEN DREI NEUEN ABNAHMEKRITERIEN aus Abschnitt 5 sind zwei erfuellt und
 eines widerlegt:
 
-    1. Aktiv schlaegt idle um >= 1.5x       ERFUELLT, Faktor 1.84
-    3. Streuung ueber Seeds                 ERFUELLT, Faktor 1.01 -> 1.28
+    1. Aktiv schlaegt idle um >= 1.5x       ERFUELLT, Faktor 1.94
+    3. Streuung ueber Seeds                 ERFUELLT, Faktor 1.04 -> 1.30
     2. Entscheidungsdichte >= 30 %          VERFEHLT, und zwar schlechter
-                                            als vorher: 15 % -> 7 %
+                                            als vorher: 15 % -> 6 %
 
 Der dritte Punkt ist der wichtige Befund von Schritt 3, siehe unten.
 
@@ -299,6 +315,17 @@ Aufwand: klein bis mittel. Ein Timer je Ebene in `sim.ts`, ein Flag in
 `Territory`, Kartenfarbe.
 
 ### E4 - Entfaltungsplan: was wann aufklappt
+
+GEBAUT am 2026-08-27, mit zwei Abweichungen von der Tabelle unten - beide
+begruendet, beide oben im Stand notiert. Der Plan liegt als `UNFOLD` und
+`CHAIN_TIER_LEVEL` in `balance.ts`.
+
+    Abweichung 1: die SORTEN. Was eine Uebernahme abwirft, steht ab der ersten
+    am Zielgebiet - eine Belohnung, die man erst zwei Ebenen spaeter erklaert
+    bekommt, ist keine. Auf Ebene 2 kommt nur die SAMMLUNG dazu.
+    Abweichung 2: der ZEHNERKAUF wurde von Max-Buy getrennt und auf Ebene 2
+    vorgezogen. Ebene 3 und 4 kaufen zusammen rund 170 Dinge; die alle einzeln
+    anzuklicken waere keine Zurueckhaltung, sondern Schikane.
 
 Kein neues System, sondern eine REIHENFOLGE fuer das, was ohnehin da ist. Alles
 gleichzeitig zu zeigen ist der Grund, warum sich Ebene 2 bis 8 gleich anfuehlen.

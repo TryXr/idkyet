@@ -13,7 +13,7 @@
  *   5. Uebernommene Gebiete zahlen Rente, die Betriebskosten gehen ab.
  *   6. Sind alle Gebiete einer Ebene deins, zoomt die Karte heraus.
  */
-import { BALANCE } from './balance.js';
+import { BALANCE, CHAIN_TIER_LEVEL, shows } from './balance.js';
 import { D, fromStored, toStored, type Num } from './numbers.js';
 import { Rng } from './rng.js';
 import {
@@ -170,8 +170,13 @@ export class Sim {
    * niemandem faellt es auf. Ohne diese Freigrenze begaenne das Spiel mit einer
    * offenen Rechnung - man hat in Sekunde eins kein Bargeld, kann also nicht
    * zahlen, und das Erste, was ein Neuling liest, waere eine Mahnung.
+   *
+   * Auf der ersten Ebene faellt gar nichts an (Entfaltungsplan): dort steht
+   * ohnehin nur das Badezimmer, und ein Abfluss, der null ist, aber ein
+   * eigenes Feld hat, ist nur Rauschen im Anfang.
    */
   upkeepRate(): number {
+    if (!shows('upkeep', this.level)) return 0;
     return billedPotential(this.rooms) * levelPrice(this.level) * BALANCE.upkeep.share
       * upkeepFactor(this.bonuses);
   }
@@ -382,7 +387,12 @@ export class Sim {
   /** Ware je Sekunde, die die Konkurrenz absetzt. */
   rivalRate(): number {
     if (this.level < BALANCE.rival.startLevel) return 0;
-    return Math.min(this.output(), this.sellRate()) * BALANCE.rival.share;
+    // Sie ruestet auf, statt immer gleich stark zu bleiben - das ist das
+    // Endspiel-Tempo aus dem Entfaltungsplan und der einzige Grund, warum sich
+    // die letzten beiden Ebenen anders anfuehlen als die vorherigen.
+    const share = this.level >= BALANCE.rival.lateLevel
+      ? BALANCE.rival.lateShare : BALANCE.rival.share;
+    return Math.min(this.output(), this.sellRate()) * share;
   }
 
   /**
@@ -618,13 +628,21 @@ export class Sim {
     return Math.min(roomCount(), Math.max(2, highest + 2));
   }
 
-  /** Freigeschaltete Kettenstufen: die naechste zeigt sich, wenn die davor steht. */
+  /**
+   * Freigeschaltete Kettenstufen: die naechste zeigt sich, wenn die davor
+   * steht - und wenn der Entfaltungsplan sie schon vorsieht.
+   *
+   * Ohne den zweiten Deckel klappte die ganze Leiter in der ersten halben
+   * Stunde auf, und danach kam bis zum Schluss nichts Neues mehr dazu
+   * (TIEFE.md, Befund 1.4).
+   */
   unlockedTiers(chain: ChainKey): number {
     const list = this.units(chain);
     let unlocked = 1;
     for (let tier = 0; tier < TIERS - 1; tier++) {
       if ((list[tier] ?? 0) >= 1) unlocked = tier + 2;
     }
+    while (unlocked > 1 && this.level < (CHAIN_TIER_LEVEL[unlocked - 1] ?? 0)) unlocked--;
     return Math.min(TIERS, unlocked);
   }
 

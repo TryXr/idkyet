@@ -297,6 +297,27 @@ nächstgrößere Einheit. Selbstähnlich, ein Code-Pfad für Straßenzug bis Ste
     6  Äußeres System      Ganymed, Titan, Ceres …
     7  Interstellar        Proxima Centauri, Wolf 359, Trappist-1 …
 
+WAS WANN AUFKLAPPT (eingebaut am 2026-08-27). Die Ebenen laufen zwar durch
+denselben Code, sie zeigen aber NICHT alle dasselbe. Das ist die wichtigste
+Korrektur am Satz oben: selbstähnlich zu sein ist technisch elegant und
+spielerisch tödlich — ein Spiel, das nach 20 Minuten alle Mechaniken gezeigt
+hat, ist tot (siehe oben, "Was Spieler wirklich hält").
+
+    0 Ruhrgebiet    Von Hand ernten und verkaufen, eine Pflanze, der Regler.
+                    Am ersten übernommenen Gebiet: was eine Sorte ist.
+    1 Deutschland   Die Stromrechnung. Lager, Kettenstufe 2.
+    2 Europa        Das Sortenbeet als Sammlung. Zehn auf einmal kaufen.
+    3 Welt          Die Konkurrenz. Kettenstufe 3.
+    4 Erdorbit      Max-Buy und Meilensteine — Automatisierung als Belohnung.
+    5 Mond & Mars   Kettenstufe 4.
+    6 Äußeres Sys.  Die Konkurrenz rüstet auf.
+    7 Interstellar  Nichts Neues. Alles zusammen, Schlussbogen.
+
+Der Plan steht als Tabelle in `balance.ts`, damit die Reihenfolge an EINER
+Stelle liegt statt in verstreuten Abfragen — und `npm test` prüft, dass jede
+Ebene wirklich etwas aufklappt. Erste und letzte Ebene sind ausgenommen: die
+eine ist der Ausgangszustand, die andere lässt alles zusammenlaufen.
+
 Start ist Duisburg. Echte Namen, weil der Witz in der Beiläufigkeit sitzt: die
 Lieferfrist nach Ganymed wird genauso sachlich besprochen wie die nach Essen.
 Die Namenslisten sind handgeschrieben (rund 120 Einträge), aber es sind Listen,
@@ -312,7 +333,7 @@ und Rente. Kein Zusatzsystem, nur eine Folge von Regel 3.
 Zielwert wie bisher: aktiv ca. 1.5 bis 2x Idle-Rate.
 
 KORREKTUR (2026-08-27): Der Träger des aktiven Spiels ist NICHT die Zielwahl,
-sondern der SETZ-REGLER. Gemessen: wer den Regler nachstellt, ist Faktor 1.84
+sondern der SETZ-REGLER. Gemessen: wer den Regler nachstellt, ist Faktor 1.94
 schneller als wer ihn stehen lässt. Die Zielwahl bringt dagegen nur 1.11 — und
 zwar strukturell, nicht wegen falscher Zahlen: das Spiel wählt das Ziel selbst,
 wenn niemand hinsieht, also kann ein idlender Spieler daran gar nicht scheitern.

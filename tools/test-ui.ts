@@ -18,6 +18,7 @@ import { Sim } from '../src/core/sim.js';
 import { fmt } from '../src/core/numbers.js';
 import { levelName, maxLevel } from '../src/core/world.js';
 import { applyDemoLimit, applyFullVersion, DEMO_MAX_LEVEL } from '../src/core/config.js';
+import { BALANCE, shows, UNFOLD } from '../src/core/balance.js';
 import { VOICE_LINES, VoiceDirector } from '../src/content/voices.js';
 import { applyAction, buildViewModel, type ViewModel } from '../src/ui/model.js';
 import { decide } from './autoplay.js';
@@ -32,6 +33,37 @@ function check(label: string, passed: boolean, detail = ''): void {
 /** Jede Schaltflaeche, die das Modell gerade anbietet. */
 function options(vm: ViewModel) {
   return vm.sections.flatMap(s => s.rows.flatMap(r => r.buys));
+}
+
+/**
+ * Was das Spiel gerade ueberhaupt ZEIGT. Grundlage fuer den Entfaltungstest:
+ * ein Spiel, das nach zwanzig Minuten alles gezeigt hat, ist tot (CLAUDE.md),
+ * und genau das war der teuerste Befund in TIEFE.md.
+ */
+function surface(vm: ViewModel, s: Sim): Set<string> {
+  const seen = new Set<string>();
+  if (vm.hands.visible) seen.add('Handbetrieb');
+  if (vm.strains) seen.add('Sortenbeet');
+  if (vm.sections.some(x => x.key === 'storage')) seen.add('Lagerausbau');
+  const buys = options(vm);
+  if (buys.some(b => b.label === '10×')) seen.add('Zehnerkauf');
+  // Max-Buy nach PLAN, nicht nach Kassenlage: der Messlaeufer gibt jeden Euro
+  // sofort wieder aus und kann deshalb fast nie mehrere auf einmal bezahlen.
+  // Dass der Knopf einem wartenden Spieler wirklich erscheint, prueft weiter
+  // unten eine eigene Stichprobe.
+  if (shows('maxBuy', s.level)) seen.add('Max-Buy');
+  if (vm.sections.some(x => x.rows.some(r => r.note?.includes('bis ×')))) {
+    seen.add('Meilensteine');
+  }
+  if (vm.facts.some(([key]) => key === 'Strom')) seen.add('Betriebskosten');
+  for (const chain of ['cook', 'sell'] as const) {
+    for (let tier = 1; tier < s.unlockedTiers(chain); tier++) {
+      seen.add(`${chain === 'cook' ? 'Anbau' : 'Verkauf'}-Stufe ${tier + 1}`);
+    }
+  }
+  if (vm.facts.some(([key]) => key === 'Konkurrenz')) seen.add('Konkurrenz');
+  if (s.level >= BALANCE.rival.lateLevel) seen.add('Konkurrenz rüstet auf');
+  return seen;
 }
 
 // --- 1. Die erste Minute ---------------------------------------------------
@@ -91,6 +123,12 @@ let missingText = 0;
 let modelSeconds = 0;
 let samples = 0;
 let widest = 0;
+/**
+ * Was auf jeder Ebene irgendwann zu sehen war. VEREINIGUNG ueber die Ebene,
+ * nicht die letzte Stichprobe: ob "Max 40x" gerade dasteht, haengt am
+ * Kontostand im Moment, und direkt nach einem Kauf steht es nie da.
+ */
+const shownAt = new Map<number, Set<string>>();
 
 while (!sim.finished && sim.time < 40 * 3600) {
   sim.tick();
@@ -114,6 +152,9 @@ while (!sim.finished && sim.time < 40 * 3600) {
     missingText++;
   }
   widest = Math.max(widest, offered.length);
+  const before = shownAt.get(sim.level) ?? new Set<string>();
+  for (const item of surface(vm, sim)) before.add(item);
+  shownAt.set(sim.level, before);
 }
 
 check('Durchlauf erreicht das Ende', sim.finished, `${(sim.time / 3600).toFixed(2)} h`);
@@ -127,7 +168,37 @@ check('Nicht zu viele Knöpfe auf einmal', widest <= 45, `höchstens ${widest}`)
 check('Anzeigemodell ist billig genug', modelSeconds / samples < 0.005,
   `${((modelSeconds / samples) * 1000).toFixed(2)} ms je Aufbau`);
 
-// --- 3. Stimmen ------------------------------------------------------------
+// --- 3. Entfaltung: bringt jede Ebene etwas Neues? -------------------------
+/**
+ * Der Prueffstein fuer E4. Ohne ihn ist der Entfaltungsplan eine Tabelle in
+ * balance.ts, von der niemand merkt, wenn sie stillschweigend leerlaeuft.
+ *
+ * Die letzte Ebene ist ausgenommen: dort soll ausdruecklich nichts Neues mehr
+ * kommen, sondern alles zusammenlaufen.
+ */
+console.log('\n=== Entfaltung: was jede Ebene aufklappt ===');
+{
+  const levels = [...shownAt.keys()].sort((a, b) => a - b);
+  const barren: string[] = [];
+  for (const level of levels) {
+    const before = shownAt.get(level - 1);
+    const now = shownAt.get(level)!;
+    const fresh = before ? [...now].filter(x => !before.has(x)) : [...now];
+    // Die erste Ebene ist der Ausgangszustand und die letzte der Schlussbogen -
+    // beide sollen ausdruecklich nichts aufklappen.
+    const edge = level === 0 || level === levels[levels.length - 1];
+    console.log(`  Ebene ${level + 1} ${levelName(level).padEnd(16)} ` +
+      (fresh.length > 0 ? fresh.join(', ') : '(nichts Neues)'));
+    if (fresh.length === 0 && !edge) barren.push(levelName(level));
+  }
+  check('Jede Ebene klappt etwas auf', barren.length === 0,
+    barren.length > 0 ? `leer: ${barren.join(', ')}` : `${levels.length} Ebenen`);
+  check('Die erste Ebene zeigt noch nicht alles',
+    (shownAt.get(0)?.size ?? 0) < (shownAt.get(levels[levels.length - 1]!)?.size ?? 0) / 2,
+    `${shownAt.get(0)?.size ?? 0} von zuletzt ${shownAt.get(levels[levels.length - 1]!)?.size ?? 0}`);
+}
+
+// --- 4. Stimmen ------------------------------------------------------------
 console.log('\n=== Stimmen ===');
 {
   const perLevel = new Map<number, number>();
@@ -167,7 +238,7 @@ console.log('\n=== Stimmen ===');
     unseen.length ? unseen.map(l => l.id).join(', ') : `${VOICE_LINES.length} von ${VOICE_LINES.length}`);
 }
 
-// --- 4. Max-Buy und Aktionen ----------------------------------------------
+// --- 5. Max-Buy und Aktionen ----------------------------------------------
 console.log('\n=== Max-Buy und Aktionen ===');
 {
   const probe = new Sim({ seed: 3 });
@@ -175,6 +246,24 @@ console.log('\n=== Max-Buy und Aktionen ===');
   probe.cash = probe.cash.mul(10).add(10_000);
 
   const want = probe.affordableUnits('cook', 0);
+  // Der Knopf muss auf der Ebene auftauchen, die ihn ankuendigt - und zwar
+  // fuer jemanden, der kurz nicht kauft. Ohne diese Stichprobe haengt eine
+  // versprochene Belohnung an der Kassenlage: gemessen erschien sie erst drei
+  // Ebenen spaeter als die Stimme, die sie ankuendigt.
+  {
+    const waiting = new Sim({ seed: 1 });
+    while (!waiting.finished && waiting.level < UNFOLD.maxBuy && waiting.time < 40 * 3600) {
+      waiting.tick();
+      decide(waiting);
+    }
+    check('Max-Buy ist auf seiner Ebene freigeschaltet', shows('maxBuy', waiting.level),
+      `Ebene ${waiting.level + 1}`);
+    for (let t = 0; t < 60; t++) waiting.tick();   // einmal kurz nicht kaufen
+    const offered = options(buildViewModel(waiting)).filter(o => o.label.startsWith('Max'));
+    check('Max-Buy erscheint, sobald man kurz spart', offered.length > 0,
+      offered[0]?.label ?? 'kein Knopf');
+  }
+
   check('Max-Buy hat etwas anzubieten', want > 0, `${want}× Gärtner`);
   const quoted = probe.unitBulkCost('cook', 0, want);
   const before = probe.cash;
@@ -204,7 +293,7 @@ console.log('\n=== Max-Buy und Aktionen ===');
   check('Von Hand verkaufen', applyAction(probe, { kind: 'sell' }));
 }
 
-// --- 5. Ende und Demo-Zuschnitt -------------------------------------------
+// --- 6. Ende und Demo-Zuschnitt -------------------------------------------
 console.log('\n=== Ende und Demo ===');
 {
   const finishedVm = buildViewModel(sim);

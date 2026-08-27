@@ -72,7 +72,7 @@ export const VOICE_LINES: readonly VoiceLine[] = [
   enter('eu-2', 2, 'Die Prophetin', 'Sie schlafen. Sie ahnen nichts. Wecke sie behutsam. Mit Angebot.'),
   unit('eu-3', 2, 'sell', 1, 'Kevin', 'Ein Straßenboss! Der stellt Dealer ein. Wir stellen jetzt Leute ein, die Leute einstellen.'),
   room('eu-4', 2, 4, 'Die Prophetin', 'Die Garage. Das Auto steht jetzt draußen. Das Auto hat nie etwas eingebracht.'),
-  enter('eu-5', 2, 'Kevin', 'Die Nachbarn kennen uns noch nicht. Das ist der beste Zustand, in dem ein Nachbar sein kann.'),
+  enter('eu-5', 2, 'Kevin', 'Guck mal, das Beet. Da steht aus jedem Ort was drin, wo wir schon waren. Wie Urlaubsfotos, nur dass sie was bringen.'),
 
   // --- 3 Welt ------------------------------------------------------------
   enter('welt-1', 3, 'Die Prophetin', 'Die Welt. Von hier sehen die Gebiete aus wie Zellen. Sie füllen sich. Sie gehören uns.'),
@@ -86,21 +86,21 @@ export const VOICE_LINES: readonly VoiceLine[] = [
   enter('orbit-2', 4, 'Der Buchhalter', 'Die Erde ist voll. Das war absehbar. Der Rest liegt oben.'),
   enter('orbit-3', 4, 'Die Prophetin', 'Von hier oben ist die Erde ein einziger Kunde. Ein müder, gut belieferter Kunde.'),
   room('orbit-4', 4, 8, 'Die Prophetin', 'Eine Lagerhalle. Endlich etwas, das aussieht, als gehörte es dir.'),
-  enter('orbit-5', 4, 'Kevin', 'Wenn wir einen ganzen Planeten beliefern, kriegen wir dann so eine Flagge?'),
+  enter('orbit-5', 4, 'Kevin', 'Es gibt jetzt einen Knopf, der alles auf einmal kauft. Alles auf einmal! Wenn wir so weitermachen, kriegen wir dann so eine Flagge?'),
 
   // --- 5 Mond & Mars -----------------------------------------------------
   enter('moon-1', 5, 'Der Buchhalter', 'Der Mond hat Fläche. Sehr viel Fläche. Und keine Behörde. Ich bin fast gerührt.'),
   enter('moon-2', 5, 'Kevin', 'Auf dem Mars wohnen zwölf Leute. Zwölf! Die müssen wir ALLE erwischen.'),
   enter('moon-3', 5, 'Die Prophetin', 'Zwölf sind zwölf. Wir haben mit dreien angefangen, und zwei davon waren wir.'),
   on('moon-4', 5, 'territoryLost', 'Kevin', 'Die waren vor uns da. Wir holen es zurück, es kostet nur mehr. Ich bin trotzdem beleidigt.'),
-  enter('moon-5', 5, 'Der Buchhalter', 'Zur Erinnerung: angefangen haben wir im Badezimmer. Ich führe darüber Buch.'),
+  unit('moon-5', 5, 'sell', 3, 'Der Buchhalter', 'Ein Konzernchef. Büro, Quartalsbericht, niemand fragt ihn je nach dem Produkt. Angefangen haben wir im Badezimmer, ich führe darüber Buch.'),
 
   // --- 6 Äußeres System --------------------------------------------------
   enter('outer-1', 6, 'Der Buchhalter', 'Die Lieferfrist zum Asteroidengürtel liegt bei elf Monaten. Ein ganz normales Problem. Ich habe es im Griff.'),
   enter('outer-2', 6, 'Kevin', 'Ich hab den Asteroiden Namen gegeben. Der große da heißt Kevin. Nach mir.'),
   enter('outer-3', 6, 'Die Prophetin', 'Noch ein Mond. Noch ein Ring. Noch einer. Wir sind so nah.'),
   room('outer-4', 6, 10, 'Kevin', 'Ein Orbitalgewächshaus. Das dreht sich, damit die Pflanzen nicht wegschweben. Daran hat jemand gedacht.'),
-  enter('outer-5', 6, 'Der Buchhalter', 'Im Beet steht aus jedem Ort etwas, den wir je beliefert haben. Duisburg ist immer noch dabei. Ich lasse das so.'),
+  enter('outer-5', 6, 'Der Buchhalter', 'Die Konkurrenz hat aufgerüstet. Ab hier ist sie schneller, als uns lieb sein kann. Ich habe die betroffenen Gebiete rot markiert. Das hilft nichts, aber es ist ordentlich.'),
 
   // --- 7 Interstellar (Ende) ---------------------------------------------
   enter('inter-1', 7, 'Die Prophetin', 'Andere Sterne. Andere Kunden. Es hört nicht auf.'),

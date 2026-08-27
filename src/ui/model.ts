@@ -10,7 +10,7 @@
  * Alle Abschnitte haben dieselbe Form (Zeilen mit Kaufknoepfen). Dadurch ist
  * das Bedienfeld ein einziger generischer Renderer statt vier handgebauter.
  */
-import { BALANCE } from '../core/balance.js';
+import { BALANCE, shows } from '../core/balance.js';
 import { fmt, fmtTime, type Num } from '../core/numbers.js';
 import { CONFIG } from '../core/config.js';
 import {
@@ -171,18 +171,25 @@ export function whenText(seconds: number): string {
   return `in ${fmtTime(seconds)}`;
 }
 
-const BULK_STEPS = [1, 10] as const;
-
 function option(sim: Sim, label: string, action: UiAction, cost: Num): BuyOption {
   return { label, action, cost, costText: fmt(cost), enabled: sim.cash.gte(cost) };
 }
 
-/** Die drei Kaufknoepfe einer Zeile: einer, zehn, so viele wie moeglich. */
+/**
+ * Die Kaufknoepfe einer Zeile - und wie viele es davon gibt, haengt an der
+ * Ebene. Am Anfang kauft man EINZELN; zehn auf einmal und Max-Buy sind
+ * Belohnungen, die spaeter aufklappen (Entfaltungsplan, siehe balance.ts).
+ * Automatisierung als Belohnung statt als Grundausstattung ist der Punkt.
+ */
 function buyRow(
   sim: Sim, make: (count: number) => UiAction, cost: (count: number) => Num, max: number,
 ): BuyOption[] {
-  const buys = BULK_STEPS.map(count => option(sim, `${count}×`, make(count), cost(count)));
-  if (max > BULK_STEPS[BULK_STEPS.length - 1]!) {
+  const buys = [option(sim, '1×', make(1), cost(1))];
+  if (shows('bulk', sim.level)) buys.push(option(sim, '10×', make(10), cost(10)));
+  // `max > 1`, nicht `max > 10`: sonst haengt die versprochene Belohnung am
+  // Kontostand statt an der Ebene, und der Knopf taucht Stunden spaeter auf
+  // als die Stimme, die ihn ankuendigt. Gemessen: erst auf Ebene 7 statt 5.
+  if (shows('maxBuy', sim.level) && max > 1) {
     buys.push(option(sim, `Max ${max}×`, make(max), cost(max)));
   }
   return buys;
@@ -211,7 +218,11 @@ function chainSection(sim: Sim, chain: ChainKey): Section {
       name: unitName(chain, tier),
       count: count > 0 ? `${count}×` : '',
       facts,
-      note: stone ? `noch ${stone - count} bis ×${BALANCE.chain.milestoneMult}` : null,
+      // Die Meilensteine wirken von Anfang an, sie STEHEN nur spaeter da. Wer
+      // in der ersten Stunde nichts von ihnen weiss, verliert nichts - wer sie
+      // auf Ebene 5 entdeckt, bekommt ein neues Spielzeug.
+      note: stone && shows('milestones', sim.level)
+        ? `noch ${stone - count} bis ×${BALANCE.chain.milestoneMult}` : null,
       waitText: whenText(sim.secondsUntil(sim.unitCost(chain, tier))),
       highlight: tier === 0 && count === 0,
       buys: buyRow(sim,
@@ -305,7 +316,7 @@ function targetView(sim: Sim, territory: Territory | null): TargetView | null {
 
 /** Das Beet, sobald es eines gibt. */
 function strainView(sim: Sim): StrainView | null {
-  if (sim.bonuses.count <= 0) return null;
+  if (sim.bonuses.count <= 0 || !shows('strains', sim.level)) return null;
   return {
     title: STRAINS.title,
     hint: HINTS.strains,
@@ -389,7 +400,10 @@ export function buildViewModel(sim: Sim): ViewModel {
     // ueberhaupt laeuft. In der ersten Minute steht im Badezimmer eine Pflanze
     // auf zwei Plaetzen; das ist der Startzustand, kein Fehler, und eine
     // Warnung darauf waere das erste, was ein Neuling zu lesen bekommt.
-    if (!handsVisible && sim.emptySeats() > sim.seats() * 0.4) {
+    // ...und erst, wenn Strom ueberhaupt etwas kostet - sonst waere die
+    // Begruendung der Warnung auf Ebene 1 schlicht falsch.
+    if (!handsVisible && shows('upkeep', sim.level)
+      && sim.emptySeats() > sim.seats() * 0.4) {
       warnings.push(WARNINGS.emptySeats);
     }
     // Die Konkurrenz wird NAMENTLICH gemeldet, sobald es eng wird. Eine
@@ -467,13 +481,19 @@ export function buildViewModel(sim: Sim): ViewModel {
       chainSection(sim, 'cook'),
       roomSection(sim),
       chainSection(sim, 'sell'),
-      storageSection(sim),
+      ...(shows('storage', sim.level) ? [storageSection(sim)] : []),
     ],
     facts: [
       ['Gärtner', `${Math.floor(sim.cook[0] ?? 0)} · Pflege ${(sim.care() * 100).toFixed(0)} %`],
       ['Verkäufer', String(Math.floor(sim.sell[0] ?? 0))],
-      ['Strom', `${fmt(sim.upkeepRate())} / s`],
+      ...(shows('upkeep', sim.level)
+        ? [['Strom', `${fmt(sim.upkeepRate())} / s`] as [string, string]] : []),
       ['Rente', `${fmt(sim.rentPerSecond())} / s`],
+      // Was die Konkurrenz absetzt, steht neben dem eigenen Absatz - sonst ist
+      // sie eine Kraft, die man nur an ihren Folgen merkt. Und nur so ist zu
+      // sehen, dass sie ab dem Aeusseren System aufruestet.
+      ...(sim.level >= BALANCE.rival.startLevel
+        ? [['Konkurrenz', `${fmt(sim.rivalRate())} / s`] as [string, string]] : []),
       ['Spielzeit', fmtTime(sim.time)],
     ],
     ending: endingPart(sim),

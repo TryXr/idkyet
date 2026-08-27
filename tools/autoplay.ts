@@ -14,7 +14,7 @@
  * noch das Nachrechnen: was braechte diese Anschaffung wirklich?
  */
 import type { Sim } from '../src/core/sim.js';
-import { BALANCE } from '../src/core/balance.js';
+import { BALANCE, shows } from '../src/core/balance.js';
 import { TIERS } from '../src/core/chains.js';
 import { billedPotential, roomQuality } from '../src/core/rooms.js';
 import {
@@ -166,8 +166,11 @@ export function decide(sim: Sim, opts: AutoplayOptions = {}): Decision {
   const sellers = sim.sellers();
   const before = netRate(sim, plants, gardeners, sellers, sim.rooms);
 
-  // Lager laeuft ueber und es liegt wirklich am Lager: dann zuerst das.
-  if (sim.storage >= sim.storageCap() * 0.95 && sim.output() > sim.sellRate()) {
+  // Lager laeuft ueber und es liegt wirklich am Lager: dann zuerst das. Der
+  // Entfaltungsplan gilt auch hier - ein Messlauf, der Knoepfe drueckt, die es
+  // noch gar nicht gibt, misst ein anderes Spiel (BALANCING.md, Abschnitt 8).
+  if (shows('storage', sim.level)
+    && sim.storage >= sim.storageCap() * 0.95 && sim.output() > sim.sellRate()) {
     if (cash.gte(sim.storageCost()) && sim.buyStorage()) return { kind: 'storage' };
   }
 

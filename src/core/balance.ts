@@ -170,10 +170,13 @@ export const BALANCE = {
    * jede Ebene eine eigene Zahl gepflegt werden muss.
    */
   rival: {
-    /** Ab dieser Zoomstufe taucht sie auf (siehe Entfaltungsplan, TIEFE.md). */
+    /** Ab dieser Zoomstufe taucht sie auf (siehe UNFOLD unten). */
     startLevel: 3,
     /** Anteil deines Durchsatzes, mit dem sie liefert. */
     share: 0.35,
+    /** Ab hier ruestet sie auf - das Endspiel-Tempo aus dem Entfaltungsplan. */
+    lateLevel: 6,
+    lateShare: 0.6,
     /** Auf so viele Gebiete gleichzeitig verteilt sie ihre Arbeit. */
     spread: 3,
     /** Aufschlag auf den Bedarf, wenn ein Gebiet zurueckerobert werden muss. */
@@ -247,6 +250,57 @@ export const ROOM_NAMES: ReadonlyArray<string> = [
   'Gartenlaube', 'Gewächshaus', 'Scheune', 'Lagerhalle', 'Plantage',
   'Orbitalgewächshaus', 'Asteroiden-Gewächshaus',
 ];
+
+/**
+ * DER ENTFALTUNGSPLAN (E4, TIEFE.md). Ab welcher Ebene etwas ueberhaupt
+ * auftaucht.
+ *
+ * Warum das eine Tabelle ist und keine verstreuten Abfragen: die Reihenfolge
+ * IST der Inhalt. Alle Quellen nennen das regelmaessige Aufklappen neuer
+ * Regeln als Hauptgrund, warum Spieler dranbleiben - und unser Modell tut
+ * ausdruecklich das Gegenteil ("selbstaehnlich, ein Code-Pfad fuer Strassenzug
+ * bis Sternbild"). Ohne diese Tabelle hat der Spieler nach zwanzig Minuten
+ * alles gesehen, was das Spiel je zeigt (TIEFE.md, Befund 1.4).
+ *
+ *   0 Ruhrgebiet      Ernten und verkaufen von Hand, eine Pflanze, der Regler.
+ *                     Am ersten uebernommenen Gebiet: was eine Sorte ist.
+ *   1 Deutschland     Die Stromrechnung wird faellig. Lager, Kettenstufe 2.
+ *   2 Europa          Das Sortenbeet als Sammlung. Zehn auf einmal kaufen.
+ *   3 Welt            Die Konkurrenz. Kettenstufe 3.
+ *   4 Erdorbit        Meilensteine und Max-Buy - Automatisierung als Belohnung.
+ *   5 Mond & Mars     Kettenstufe 4.
+ *   6 Aeusseres Sys.  Die Konkurrenz ruestet auf.
+ *   7 Interstellar    Nichts Neues. Alle Regeln zusammen, Schlussbogen.
+ *
+ * ABWEICHUNG vom Plan in TIEFE.md: dort standen die Sorten komplett auf Ebene
+ * 2. Was eine Uebernahme abwirft, steht aber ab der ersten am Zielgebiet - eine
+ * Belohnung, die man erst zwei Ebenen spaeter erklaert bekommt, ist keine. Ab
+ * Ebene 2 kommt nur die SAMMLUNG dazu, also die Uebersicht ueber alles Geerbte.
+ */
+export const UNFOLD = {
+  /** Betriebskosten werden abgerechnet und angezeigt. */
+  upkeep: 1,
+  /** Das Lager laesst sich ausbauen. */
+  storage: 1,
+  /** Das Sortenbeet steht als Sammlung im Bedienfeld. */
+  strains: 2,
+  /** Der Knopf "10x". */
+  bulk: 2,
+  /** "noch 12 bis x2" an den Kaufzeilen. */
+  milestones: 4,
+  /** Der Knopf "Max n x". */
+  maxBuy: 4,
+} as const;
+
+export const shows = (feature: keyof typeof UNFOLD, level: number): boolean =>
+  level >= UNFOLD[feature];
+
+/**
+ * Ab welcher Ebene eine Kettenstufe ueberhaupt angeboten wird. Vorher genuegte
+ * "die darunter steht schon" - damit konnte in der ersten halben Stunde die
+ * ganze Leiter aufklappen, und danach kam nichts mehr.
+ */
+export const CHAIN_TIER_LEVEL: ReadonlyArray<number> = [0, 1, 3, 5];
 
 /** Die Zoomstufen. Namen der Gebiete stehen in content/places.ts. */
 export const LEVELS: ReadonlyArray<string> = [

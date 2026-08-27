@@ -122,11 +122,12 @@ Was sie kostet, je Spielweise:
 
 | Spielweise                        | Dauer   | verlorene Gebiete |
 |-----------------------------------|--------:|------------------:|
-| aufmerksam (Regler + Zielwahl)    | 5.46 h  |                 1 |
-| Zielwahl stur der Reihe nach      | 5.97 h  |                13 |
-| Regler unberuehrt bei 50 %        | 10.06 h |                20 |
+| aufmerksam (Regler + Zielwahl)    | 5.59 h  |                 7 |
+| Zielwahl stur der Reihe nach      | 6.08 h  |                18 |
+| Regler unberuehrt bei 50 %        | 10.85 h |                35 |
 
-(Zahlen vom 2026-08-27 nach E2. Davor: 5.56 / 6.18 / 10.07 h.)
+(Stand nach E2 und E4. Die verlorenen Gebiete sind gegenueber E2 allein deutlich
+gestiegen, weil die Konkurrenz ab Ebene 6 aufruestet - siehe 5d.)
 
 ## 5b. Aktiv gegen idle - die Messung stellte lange die falsche Frage
 
@@ -141,9 +142,9 @@ bestraft).
 
 Die richtige Frage ist der REGLER, denn den stellt niemand automatisch:
 
-    Regler nachgestellt   5.46 h
-    Regler unberuehrt    10.06 h
-    Faktor                 1.84   (Vorgabe 1.5 bis 2)
+    Regler nachgestellt   5.59 h
+    Regler unberuehrt    10.85 h
+    Faktor                 1.94   (Vorgabe 1.5 bis 2)
 
 Der Regressionslauf prueft ab jetzt genau das. Die Zielwahl bleibt als
 Nebenkriterium drin - sie bringt reale 11 %, nur traegt sie die Vorgabe nicht.
@@ -196,8 +197,11 @@ STREUUNG UEBER SEEDS - das war Abnahmekriterium 3 und ist erfuellt:
 
 | Sortenstaerke | fuenf Seeds        | Streuung |
 |---------------|--------------------|---------:|
-| 0.00          | 9.33 bis 9.45 h    |     1.01 |
-| 0.03          | 5.46 bis 6.98 h    |     1.28 |
+| 0.00          | 9.59 bis 9.87 h    |     1.04 |
+| 0.03          | 5.59 bis 7.29 h    |     1.30 |
+
+Alle fuenf liegen weiter in der Vorgabe von 5 bis 8 h - die Streuung kostet
+also keine Durchspielbarkeit.
 
 Und die Beete sehen verschieden aus: Seed 1 endet bei Ertrag x2.03, Seed 5 bei
 x1.50, dafuer mit mehr Plaetzen. Zwei Partien sind zum ersten Mal nicht
@@ -212,6 +216,8 @@ ENTSCHEIDUNGSDICHTE - Abnahmekriterium 2, VERFEHLT und verschlechtert:
 | 0.03          |       13.0 |    7 % |
 | 0.03          |       16.5 |    7 % |
 
+(Isolationsmessung von vor E4. Der Stand heute ist 6 %.)
+
 Die Sorten selbst druecken die Zahl, nicht das Nachbalancieren. Der Grund ist
 strukturell: ein GLOBALER Faktor hebt alle Optionen einer Seite gleich an und
 laesst die Rangfolge unberuehrt - er schiebt die beiden Seiten nur weiter
@@ -223,6 +229,43 @@ RAEUME, in jedem Seed, mit und ohne Sorten. Die beiden Helfer-Ketten bekommen
 je 9 %. Solange eine Kategorie vier Fuenftel des Budgets bindet, gibt es bei
 den anderen nichts abzuwaegen. Das ist ein Problem der Kostenkurven und
 gehoert in den naechsten Schritt, nicht in E2.
+
+## 5d. Der Entfaltungsplan (E4, eingebaut am 2026-08-27)
+
+Kein neues System, nur eine Reihenfolge - aber sie kostet Spielzeit, also
+gehoert sie hierher. Die Tabelle steht als `UNFOLD` und `CHAIN_TIER_LEVEL` in
+`balance.ts`, `npm test` prueft, dass jede Ebene wirklich etwas aufklappt.
+
+    Gesamtdauer      5.46 h -> 5.59 h
+    aktiv/idle         1.84 -> 1.94
+    letzte Ebene     90 min -> 96 min
+    verlorene Gebiete     7 (aufmerksam), 18 (stur), 35 (Regler unberuehrt)
+
+Die Ebenen 0 bis 3 blieben auf die Minute gleich lang: die Kettenstufen wurden
+dort ohnehin noch nicht gekauft, der Deckel greift also erst da, wo er soll.
+Gemessen wird Kettenstufe 3 jetzt genau auf ihrer Freigabe-Ebene gekauft, und
+Stufe 4 ebenso - der Deckel ist damit ein Ereignis und keine Bremse.
+
+DIE KONKURRENZ RUESTET AB EBENE 6 AUF (Anteil 0.35 -> 0.6). Das ist das einzige
+Stueck Entfaltung, das nicht bloss ein Knopf ist, und es kostet einen
+aufmerksamen Spieler jetzt 7 statt 1 Gebiet ueber den ganzen Durchlauf. Damit
+das ueberhaupt wahrnehmbar ist, steht ihr Absatz ab Ebene 3 als Zahl neben dem
+eigenen - vorher war sie eine Kraft, die man nur an ihren Folgen merkte.
+
+### Was das Messen an sich selbst gefunden hat
+
+Zwei Fehler, beide erst durch den neuen Pruefstein sichtbar:
+
+1. MAX-BUY erschien nicht auf seiner Ebene, sondern drei spaeter. Der Knopf
+   hing an der Bedingung "du kannst mehr als zehn auf einmal bezahlen" - eine
+   Kassenlage, keine Ebene. Die Stimme kuendigte ihn also drei Ebenen zu frueh
+   an. Jetzt genuegen zwei.
+2. Der Pruefstein selbst mass zuerst die LETZTE Stichprobe je Ebene statt der
+   Vereinigung. Direkt nach einem Kauf ist nie etwas bezahlbar, also sah er
+   Knoepfe nicht, die es gab.
+
+Beides derselbe alte Fehlertyp aus Abschnitt 8: erst pruefen, ob das Werkzeug
+das misst, was es zu messen behauptet.
 
 ## 6. Raeume, Pflanzen, Gebiete
 
@@ -254,22 +297,23 @@ Spiel endet - im Asteroiden-Gewaechshaus.
 | Deutschland      | 28 min|    1.76 |     9.52 | Kleiderschrank         |
 | Europa           | 26 min|      22 |       48 | Dachboden              |
 | Welt             | 28 min|     193 |      184 | Garage                 |
-| Erdorbit         | 35 min|  1.31 k |   1.77 k | Gewächshaus            |
+| Erdorbit         | 35 min|  1.43 k |   1.77 k | Scheune                |
 | Mond & Mars      | 50 min|  8.21 k |   8.16 k | Lagerhalle             |
-| Aeusseres System | 63 min| 53.24 k |  53.23 k | Orbitalgewächshaus     |
-| Interstellar     | 90 min|216.38 k | 216.38 k | Asteroiden-Gewächshaus |
+| Aeusseres System | 65 min| 55.01 k |  55.00 k | Orbitalgewächshaus     |
+| Interstellar     | 96 min|219.36 k | 219.36 k | Asteroiden-Gewächshaus |
 
-    Gesamtdauer         5.46 h
-    stur der Reihe nach 5.97 h   (kluge Zielwahl lohnt sich)
+    Gesamtdauer         5.59 h
+    stur der Reihe nach 6.08 h   (kluge Zielwahl lohnt sich)
     Uebernahmen         120 von 120
     groesste Luecke     11 min ohne Uebernahme
     Renten am Ende      44 % des Einkommens
     Demo (Ebene 1-5)    rund 2.1 h
 
-Die Ebenen wachsen von 8 auf 90 Minuten. Vor den Sorten waren es 9 auf 76 - die
+Die Ebenen wachsen von 8 auf 96 Minuten. Vor den Sorten waren es 9 auf 76 - die
 letzte Ebene ist der Preis dafuer, dass der Bedarf gegen die Sorten anziehen
-musste (siehe 5c). Sie bleibt der empfindlichste Punkt der ganzen Kurve, weil
-oben die Raumleiter endet und der Durchsatz nicht mehr mitwaechst.
+musste (5c) und die Konkurrenz oben aufruestet (5d). Sie bleibt der
+empfindlichste Punkt der ganzen Kurve, weil dort die Raumleiter endet und der
+Durchsatz nicht mehr mitwaechst.
 
 ## 8. Was am Messwerkzeug schiefging (und nicht am Spiel)
 
@@ -288,17 +332,19 @@ der simulierte Spieler ueberhaupt etwas Sinnvolles tut.
 
 ## 9. Offene Punkte
 
-- ENTSCHEIDUNGSDICHTE 7 %, Ziel 30 % (TIEFE.md, Abschnitt 5). Weder E2 noch E3
+- ENTSCHEIDUNGSDICHTE 6 %, Ziel 30 % (TIEFE.md, Abschnitt 5). Weder E2 noch E3
   konnten das heben, und E2 hat es gesenkt - warum, steht in 5c. Der Hebel
   liegt woanders: 83 % des Geldes gehen in Raeume, je 9 % in die beiden Ketten.
   Solange das so ist, gibt es nichts abzuwaegen. Anzugehen ueber die
   KOSTENKURVEN (`rooms.costMult`, `chain.costTierMult`), nicht ueber weitere
   Belohnungen.
-- LETZTE EBENE 90 min, die laengste im Spiel. Hebel bleibt `demandDecay`.
+- LETZTE EBENE 96 min, die laengste im Spiel. Hebel bleibt `demandDecay`.
 - Offline-Cap 8 h, passt zur Spiellaenge.
 
-ERLEDIGT: Aktiv gegen idle steht bei Faktor 1.84 (siehe 5b). Nicht durch die
+ERLEDIGT: Aktiv gegen idle steht bei Faktor 1.94 (siehe 5b). Nicht durch die
 Konkurrenz, sondern weil die Messung endlich das misst, was ein Spieler
 tatsaechlich selbst entscheidet.
 
-ERLEDIGT: Streuung ueber Seeds, Faktor 1.01 -> 1.28 (siehe 5c).
+ERLEDIGT: Streuung ueber Seeds, Faktor 1.04 -> 1.30 (siehe 5c).
+
+ERLEDIGT: Jede Ebene klappt etwas auf (siehe 5d), und `npm test` haelt das fest.
