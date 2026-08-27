@@ -13,8 +13,8 @@
 export interface Territory {
   readonly id: number;
   readonly name: string;
-  /** Ware, die bis 100 % noetig ist. */
-  readonly demand: number;
+  /** Ware, die bis 100 % noetig ist. Steigt, wenn die Konkurrenz zuerst da war. */
+  demand: number;
   /** Bargeld je Ware. */
   readonly price: number;
   /** Bargeld je Sekunde, sobald uebernommen. */
@@ -22,12 +22,16 @@ export interface Territory {
   /** Bereits geliefert. */
   supplied: number;
   owned: boolean;
+  /** Was die Konkurrenz hier schon abgesetzt hat. */
+  rival: number;
+  /** Die Konkurrenz war schneller. Zurueckzuholen, aber teurer. */
+  lost: boolean;
 }
 
 export function createTerritory(
   id: number, name: string, demand: number, price: number, rent: number,
 ): Territory {
-  return { id, name, demand, price, rent, supplied: 0, owned: false };
+  return { id, name, demand, price, rent, supplied: 0, owned: false, rival: 0, lost: false };
 }
 
 /** Versorgungsgrad 0..1. */
@@ -92,4 +96,39 @@ export function bestTarget(territories: readonly Territory[]): Territory | null 
 /** Das erste offene Gebiet - stur der Reihe nach. */
 export function firstOpen(territories: readonly Territory[]): Territory | null {
   return territories.find(t => !t.owned) ?? null;
+}
+
+/**
+ * Die Konkurrenz beliefern lassen.
+ *
+ * Sie nimmt sich das lohnendste offene Gebiet, das der Spieler gerade NICHT
+ * beliefert - genau deshalb ist die Zielwahl jetzt ein Rennen und nicht mehr
+ * eine Reihenfolge. Wer die guten Gebiete zuerst holt, laesst der Konkurrenz
+ * nur die undankbaren.
+ */
+export function rivalTargets(
+  territories: readonly Territory[], playerTargetId: number | null, count: number,
+): Territory[] {
+  const open = territories.filter(
+    t => !t.owned && !t.lost && t.id !== playerTargetId && t.demand - t.rival > 0);
+  open.sort((a, b) => value(b) - value(a));
+  return open.slice(0, count);
+}
+
+/** Wie lohnend ein Gebiet ist - dieselbe Rechnung fuer Spieler und Konkurrenz. */
+function value(t: Territory): number {
+  const rest = Math.max(1e-9, t.demand - t.rival);
+  return (t.rent + t.price * rest / 60) / rest;
+}
+
+/**
+ * Ein Gebiet an die Konkurrenz verlieren: der eigene Fortschritt dort ist weg
+ * und der Bedarf steigt. VERLOREN IST ES NICHT - man kann es zurueckholen, es
+ * kostet nur mehr. Kein Fail-State, nur Tempoverlust (CLAUDE.md).
+ */
+export function loseTo(t: Territory, penalty: number): void {
+  t.lost = true;
+  t.rival = 0;
+  t.supplied = 0;
+  t.demand *= penalty;
 }

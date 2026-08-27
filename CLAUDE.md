@@ -243,6 +243,18 @@ Daraus entsteht die Zielwahl von selbst: Ein großes Gebiet zahlt mehr Rente,
 braucht aber lange; ein kleines ist schnell deins. Wer klug wählt, kommt
 schneller voran — ohne dass eine Regel dafür nötig wäre.
 
+DIE KONKURRENZ (eingebaut am 2026-08-27). Ab der Ebene "Welt" beliefert
+jemand anderes dieselben Gebiete. Sie arbeitet an mehreren offenen Gebieten
+gleichzeitig, nimmt sich immer die lohnendsten, und lässt das in Ruhe, was du
+gerade selbst belieferst. Ist sie zuerst fertig, ist das Gebiet NICHT verloren
+— es kostet nur die Hälfte mehr Bedarf, um es zurückzuholen, und zahlt bis
+dahin keine Rente. Kein Fail-State, nur Tempoverlust.
+
+Das ist keine vierte Regel, sondern eine Eigenschaft von Regel 2: verkaufen
+heißt ab jetzt, schneller zu verkaufen als jemand anderes. Sie ersetzt die
+gestrichene Hitze als einzige Gegenkraft im Spiel — ohne sie ist die Karte eine
+Checkliste, die man in beliebiger Reihenfolge abarbeitet.
+
 SORTEN (festgelegt am 2026-08-26). Jedes Gebiet bringt bei der Übernahme eine
 eigene Sorte mit, deren Name aus dem Ortsnamen entsteht ("Duisburger Nebel",
 "Ganymed Frost") und die genau EINEN dauerhaften Vorteil hat:
@@ -285,6 +297,15 @@ nächstbeste; wer selbst wählt, nimmt das mit dem besten Verhältnis aus Bedarf
 und Rente. Kein Zusatzsystem, nur eine Folge von Regel 3.
 
 Zielwert wie bisher: aktiv ca. 1.5 bis 2x Idle-Rate.
+
+KORREKTUR (2026-08-27): Der Träger des aktiven Spiels ist NICHT die Zielwahl,
+sondern der SETZ-REGLER. Gemessen: wer den Regler nachstellt, ist Faktor 1.81
+schneller als wer ihn stehen lässt. Die Zielwahl bringt dagegen nur 1.11 — und
+zwar strukturell, nicht wegen falscher Zahlen: das Spiel wählt das Ziel selbst,
+wenn niemand hinsieht, also kann ein idlender Spieler daran gar nicht scheitern.
+Die Zielwahl bleibt als Würze drin (die Konkurrenz macht sie zu einem Rennen),
+trägt aber nicht die Vorgabe. Der Befund steht in TIEFE.md, die Zahlen in
+BALANCING.md.
 
 ### Was aus dem alten Konzept bleibt
 

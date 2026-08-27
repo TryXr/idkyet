@@ -17,9 +17,23 @@ mitdenkende, beide Extreme kommen gar nicht durch. Beide Ketten bleiben ab
 Ebene 4 innerhalb von Faktor 1.4 beieinander, der Engpass wechselt, und
 Kettenstufe 3 wird endlich gekauft. Details in BALANCING.md.
 
-NOCH OFFEN AUS TIEFE.md: E2 (Sorten), E3 (Rivale), E4 (Entfaltungsplan). Die
-beiden Kennzahlen, die noch fehlen, haengen genau daran: Entscheidungsdichte
-17 % statt 30 %, und aktiv schlaegt idle nur um Faktor 1.09 statt 1.5.
+Dazu die KONKURRENZ (E3): ab der Ebene "Welt" nimmt sich jemand anderes offene
+Gebiete. Zurueckzuholen, aber teurer - kein Fail-State.
+
+    aufmerksam                   5.56 h,  1 Gebiet verloren
+    Zielwahl stur der Reihe nach 6.18 h, 14 Gebiete verloren
+    Regler unberuehrt           10.07 h, 22 Gebiete verloren
+
+DAS ABBRUCHKRITERIUM HAT GEGRIFFEN: der Rivale hebt den Aktiv/Idle-Faktor der
+ZIELWAHL nicht ueber 1.3 (durchgemessen, er bleibt bei 1.11). Die Zielwahl ist
+als Traeger des aktiven Spiels damit widerlegt - sie bleibt als Wuerze drin.
+Traeger ist der REGLER, und daran gemessen steht der Faktor bei 1.81, also in
+der Vorgabe. Warum die alte Messung die falsche Frage stellte, steht in
+BALANCING.md 5b.
+
+NOCH OFFEN AUS TIEFE.md: E2 (Sorten) und E4 (Entfaltungsplan). Die eine
+Kennzahl, die noch fehlt, haengt an E2: Entscheidungsdichte 15 % statt 30 % -
+die KAUFENTSCHEIDUNG ist weiter ueberwiegend Nachrechnen.
 
 ## Wo wir vorher standen (2026-08-26)
 

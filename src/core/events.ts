@@ -12,6 +12,8 @@ export type GameEvent =
   | { type: 'levelUp'; level: number; at: number }
   /** Ein Gebiet ist zu 100 % versorgt und gehoert ab jetzt dir. */
   | { type: 'territoryTaken'; level: number; id: number; name: string; rent: number; at: number }
+  /** Die Konkurrenz war zuerst da. Zurueckzuholen, aber teurer. */
+  | { type: 'territoryLost'; level: number; id: number; name: string; at: number }
   | { type: 'roomBought'; tier: number; count: number; at: number }
   | { type: 'unitBought'; chain: ChainKey; tier: number; count: number; at: number }
   | { type: 'milestoneReached'; chain: ChainKey; tier: number; threshold: number; at: number }

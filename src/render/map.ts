@@ -18,6 +18,7 @@ const COLORS = {
   empty: 0x2a2f3d,     // noch nichts geliefert
   filling: 0x4c9f6a,   // Versorgungsbalken
   owned: 0xd8b44a,     // uebernommen: gehoert dir
+  rival: 0xb4523f,     // die Konkurrenz war schneller
   target: 0xf0f2f5,    // aktuelles Ziel
   parent: 0x232734,
 };

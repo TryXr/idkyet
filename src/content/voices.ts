@@ -76,7 +76,7 @@ export const VOICE_LINES: readonly VoiceLine[] = [
 
   // --- 3 Welt ------------------------------------------------------------
   enter('welt-1', 3, 'Die Prophetin', 'Die Welt. Von hier sehen die Gebiete aus wie Zellen. Sie füllen sich. Sie gehören uns.'),
-  enter('welt-2', 3, 'Der Buchhalter', 'Zur Erinnerung: angefangen haben wir im Badezimmer. Ich führe darüber Buch.'),
+  enter('welt-2', 3, 'Der Buchhalter', 'Wir sind nicht die Einzigen. Jemand anderes beliefert dieselben Leute, und er ist schneller als du denkst. Ich habe das tabellarisch aufbereitet.'),
   unit('welt-3', 3, 'sell', 2, 'Der Buchhalter', 'Ein Großhändler. Er stellt Straßenbosse ein, die Dealer einstellen. Das Organigramm ist inzwischen zwei Seiten lang.'),
   room('welt-4', 3, 7, 'Kevin', 'Eine Scheune. Ein ganzes Gebäude, in dem nur Pflanzen wohnen. Die haben es besser als ich.'),
   unit('welt-5', 3, 'cook', 2, 'Der Buchhalter', 'Ein Botaniker. Er stellt Grower ein. Niemand in dieser Kette fasst noch eine Gießkanne an, das ist mir aufgefallen.'),
@@ -92,6 +92,8 @@ export const VOICE_LINES: readonly VoiceLine[] = [
   enter('moon-1', 5, 'Der Buchhalter', 'Der Mond hat Fläche. Sehr viel Fläche. Und keine Behörde. Ich bin fast gerührt.'),
   enter('moon-2', 5, 'Kevin', 'Auf dem Mars wohnen zwölf Leute. Zwölf! Die müssen wir ALLE erwischen.'),
   enter('moon-3', 5, 'Die Prophetin', 'Zwölf sind zwölf. Wir haben mit dreien angefangen, und zwei davon waren wir.'),
+  on('moon-4', 5, 'territoryLost', 'Kevin', 'Die waren vor uns da. Wir holen es zurück, es kostet nur mehr. Ich bin trotzdem beleidigt.'),
+  enter('moon-5', 5, 'Der Buchhalter', 'Zur Erinnerung: angefangen haben wir im Badezimmer. Ich führe darüber Buch.'),
 
   // --- 6 Äußeres System --------------------------------------------------
   enter('outer-1', 6, 'Der Buchhalter', 'Die Lieferfrist zum Asteroidengürtel liegt bei elf Monaten. Ein ganz normales Problem. Ich habe es im Griff.'),

@@ -40,6 +40,8 @@ export const WARNINGS = {
   noSellers: 'Niemand verkauft. Die Ernte bleibt liegen, bis du es selbst tust oder einen Dealer anstellst.',
   noWorkers: 'Niemand pflegt die Pflanzen. Ohne Gärtner wächst nichts von allein.',
   unpaid: 'Die Stromrechnung ist offen – die Pflege leidet. Verkauf etwas.',
+  /** Bekommt den Ortsnamen angehängt - eine Warnung ohne Ziel ist keine. */
+  rivalClose: 'Die Konkurrenz ist kurz davor, dir etwas wegzuschnappen:',
   emptySeats: 'Plätze stehen leer und kosten trotzdem Strom. Leg mehr Ernte zurück.',
 } as const;
 

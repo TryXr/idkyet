@@ -102,6 +102,50 @@ Die Kurve ist WEICH (1 - e^-x), nicht abgeschnitten: ein Gaertner mehr bringt
 immer etwas, nur immer weniger. Ein hartes Minimum waere wieder das Thermostat
 aus TIEFE.md, Befund 1.2 - dann gaebe es nichts abzuwaegen.
 
+## 5a. Die Konkurrenz (E3, eingebaut am 2026-08-27)
+
+    rate = min(ertrag, absatz) * 0.35        // ab Ebene 3 "Welt"
+    verteilt auf die 3 lohnendsten offenen Gebiete,
+    ausser dem, das du selbst gerade belieferst
+    verliert man eines: bedarf * 1.5, eigener Fortschritt weg, keine Rente
+
+Sie arbeitet mit einem ANTEIL DEINES DURCHSATZES. Damit bleibt sie ueber acht
+Groessenordnungen relevant, ohne dass fuer jede Ebene eine eigene Zahl gepflegt
+werden muss.
+
+AUF MEHRERE GEBIETE VERTEILT, weil sie sonst wirkungslos ist: arbeitete sie nur
+an einem, blockierte der Spieler sie dauerhaft mit einem einzigen Ziel -
+gemessen verlor ein aufmerksamer Spieler dann KEIN EINZIGES Gebiet, und der
+Gegendruck war keiner.
+
+Was sie kostet, je Spielweise:
+
+| Spielweise                        | Dauer   | verlorene Gebiete |
+|-----------------------------------|--------:|------------------:|
+| aufmerksam (Regler + Zielwahl)    | 5.56 h  |                 1 |
+| Zielwahl stur der Reihe nach      | 6.18 h  |                14 |
+| Regler unberuehrt bei 50 %        | 10.07 h |                22 |
+
+## 5b. Aktiv gegen idle - die Messung stellte lange die falsche Frage
+
+Der Regressionslauf verglich bisher "bestes Gebiet zuerst" mit "der Reihe nach"
+und nannte das aktiv gegen idle. Das waren aber ZWEI AUTOPILOTEN: das Spiel
+waehlt das Ziel ohnehin selbst, wenn niemand hinsieht. Ein idlender Spieler kann
+an der Zielwahl also gar nicht scheitern - deshalb kam dort jahrelang Faktor
+1.07 bis 1.11 heraus, und deshalb hat auch die Konkurrenz daran nichts geaendert
+(durchgemessen ueber Anteil 0.35 bis 1.2 und Streuung 3 bis 6: der Faktor bleibt
+zwischen 1.05 und 1.11, weil ein staerkerer Rivale beide Spielweisen gleich
+bestraft).
+
+Die richtige Frage ist der REGLER, denn den stellt niemand automatisch:
+
+    Regler nachgestellt   5.56 h
+    Regler unberuehrt    10.07 h
+    Faktor                 1.81   (Vorgabe 1.5 bis 2)
+
+Der Regressionslauf prueft ab jetzt genau das. Die Zielwahl bleibt als
+Nebenkriterium drin - sie bringt reale 11 %, nur traegt sie die Vorgabe nicht.
+
 ## 6. Raeume, Pflanzen, Gebiete
 
     plaetze(t)   = 2 * 1.6^t
@@ -137,11 +181,11 @@ Spiel endet - im Asteroiden-Gewaechshaus.
 | Aeusseres System | 63 min| 11.94 k |  20.48 k | Plantage               |
 | Interstellar     | 76 min| 58.83 k |  81.93 k | Asteroiden-Gewächshaus |
 
-    Gesamtdauer         5.55 h
-    stur der Reihe nach 6.03 h   (kluge Zielwahl lohnt sich)
+    Gesamtdauer         5.56 h
+    stur der Reihe nach 6.18 h   (kluge Zielwahl lohnt sich)
     Uebernahmen         120 von 120
     groesste Luecke     11 min ohne Uebernahme
-    Renten am Ende      33 % des Einkommens
+    Renten am Ende      34 % des Einkommens
     Demo (Ebene 1-5)    rund 2.5 h
 
 Die Ebenen wachsen von 9 auf 76 Minuten - deutlich flacher als vorher (9 auf
@@ -170,8 +214,8 @@ der simulierte Spieler ueberhaupt etwas Sinnvolles tut.
   Kaufoption liegt im Schnitt bei 65 % der besten - besser als die 12 % vor dem
   Umbau, aber die Kaufentscheidung ist weiter ueberwiegend Rechnen. Dafuer sind
   E2 (Sorten) und E3 (Rivale) da.
-- AKTIV GEGEN IDLE steht bei Faktor 1.09 (5.55 h gegen 6.03 h) und damit weiter
-  weit unter der Vorgabe von 1.5. Der Regler hilft dem aufmerksamen Spieler
-  zwar deutlich (Faktor 1.25 gegen die beste feste Stellung), aber die
-  ZIELWAHL bleibt so schwach wie vorher. Das ist der Auftrag von E3.
 - Offline-Cap 8 h, passt zur Spiellaenge.
+
+ERLEDIGT: Aktiv gegen idle steht bei Faktor 1.81 (siehe 5b). Nicht durch die
+Konkurrenz, sondern weil die Messung endlich das misst, was ein Spieler
+tatsaechlich selbst entscheidet.

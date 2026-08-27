@@ -25,13 +25,14 @@ import {
   roomSeats, totalSeats,
 } from './rooms.js';
 import {
-  allOwned, bestTarget, deliver, firstOpen, fraction, missing, rentOf, type Territory,
+  allOwned, bestTarget, deliver, firstOpen, fraction, loseTo, missing, rentOf,
+  rivalTargets, type Territory,
 } from './territory.js';
 import { generateLevel, levelDemand, levelName, levelPrice, maxLevel } from './world.js';
 import { EventBus, type EventListener, type GameEvent } from './events.js';
 import {
   migrate, offlineSeconds, SAVE_VERSION,
-  type SaveV3, type StorageAdapter,
+  type SaveV4, type StorageAdapter,
 } from './save.js';
 
 export interface SimOptions {
@@ -269,6 +270,8 @@ export class Sim {
     // Verkauf ins Zielgebiet.
     const revenue = this.deliverFromStorage(this.sellRate() * dt);
 
+    this.rivalDelivers(dt);
+
     // Renten laufen immer mit, die Betriebskosten gehen ab.
     const rent = this.rentPerSecond() * dt;
     const income = revenue + rent;
@@ -325,6 +328,44 @@ export class Sim {
       }
     }
     return revenue;
+  }
+
+  /** Woran die Konkurrenz gerade arbeitet. Leer heisst: sie ist noch nicht da. */
+  rivalTargets(): Territory[] {
+    if (this.level < BALANCE.rival.startLevel) return [];
+    return rivalTargets(this.territories, this.target()?.id ?? null, BALANCE.rival.spread);
+  }
+
+  /** Ware je Sekunde, die die Konkurrenz absetzt. */
+  rivalRate(): number {
+    if (this.level < BALANCE.rival.startLevel) return 0;
+    return Math.min(this.output(), this.sellRate()) * BALANCE.rival.share;
+  }
+
+  /**
+   * Die Konkurrenz liefert. Sie nimmt sich immer das lohnendste Gebiet, das du
+   * gerade NICHT belieferst - wer die guten zuerst holt, laesst ihr nur die
+   * undankbaren. Genau daran haengt der Wert aufmerksamen Spiels.
+   */
+  private rivalDelivers(dt: number): void {
+    const rate = this.rivalRate();
+    if (rate <= 0) return;
+    const targets = this.rivalTargets();
+    if (targets.length === 0) return;
+    // Auf mehrere Gebiete VERTEILT. Arbeitete sie nur an einem, koennte der
+    // Spieler sie mit einem einzigen Ziel dauerhaft blockieren - gemessen
+    // verlor ein aufmerksamer Spieler dann kein einziges Gebiet, und der
+    // Gegendruck war keiner.
+    const each = (rate * dt) / targets.length;
+    for (const target of targets) {
+      target.rival += each;
+      if (target.rival < target.demand) continue;
+      loseTo(target, BALANCE.rival.penalty);
+      this.emit({
+        type: 'territoryLost', level: this.level, id: target.id,
+        name: target.name, at: this.time,
+      });
+    }
   }
 
   private checkLevelUp(): void {
@@ -546,7 +587,7 @@ export class Sim {
 
   // --- Speichern und Laden ------------------------------------------------
 
-  toSave(now = Date.now()): SaveV3 {
+  toSave(now = Date.now()): SaveV4 {
     return {
       v: SAVE_VERSION,
       savedAt: now,
@@ -567,6 +608,8 @@ export class Sim {
       seed: this.seed,
       rngState: this.rng.getState(),
       supplied: this.territories.map(t => t.supplied),
+      rival: this.territories.map(t => t.rival),
+      lost: this.territories.map(t => t.lost),
     };
   }
 
@@ -579,7 +622,7 @@ export class Sim {
    * Versorgungsstand kommt aus der Datei - das haelt Staende klein und
    * ueberlebt Aenderungen an der Weltgenerierung.
    */
-  static fromSave(save: SaveV3, opts: SimOptions = {}): Sim {
+  static fromSave(save: SaveV4, opts: SimOptions = {}): Sim {
     const sim = new Sim({ ...opts, seed: save.seed });
     sim.time = save.time;
     sim.cash = fromStored(save.cash);
@@ -600,6 +643,11 @@ export class Sim {
     save.supplied.forEach((supplied, i) => {
       const t = sim.territories[i];
       if (!t) return;
+      // Der Aufschlag verlorener Gebiete wird nachgerechnet, nicht gespeichert:
+      // die Gebiete selbst kommen weiter aus dem Seed, im Stand liegt nur, was
+      // passiert ist.
+      if (save.lost[i]) { t.lost = true; t.demand *= BALANCE.rival.penalty; }
+      t.rival = save.rival[i] ?? 0;
       t.supplied = supplied;
       t.owned = supplied >= t.demand - 1e-9;
     });

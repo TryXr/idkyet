@@ -150,6 +150,28 @@ export const BALANCE = {
     perLevel: 15,
   },
 
+  /**
+   * DIE KONKURRENZ. Sie nimmt sich offene Gebiete, wenn du zu lange brauchst.
+   *
+   * Der einzige Gegendruck im Spiel (TIEFE.md, Befund 1.3): ohne sie ist die
+   * Karte eine Checkliste, die man in beliebiger Reihenfolge abarbeitet, und
+   * aufmerksames Spiel bringt fast nichts.
+   *
+   * Sie arbeitet mit einem Anteil DEINES Durchsatzes. Das ist Absicht: so
+   * bleibt sie ueber acht Groessenordnungen hinweg relevant, ohne dass fuer
+   * jede Ebene eine eigene Zahl gepflegt werden muss.
+   */
+  rival: {
+    /** Ab dieser Zoomstufe taucht sie auf (siehe Entfaltungsplan, TIEFE.md). */
+    startLevel: 3,
+    /** Anteil deines Durchsatzes, mit dem sie liefert. */
+    share: 0.35,
+    /** Auf so viele Gebiete gleichzeitig verteilt sie ihre Arbeit. */
+    spread: 3,
+    /** Aufschlag auf den Bedarf, wenn ein Gebiet zurueckerobert werden muss. */
+    penalty: 1.5,
+  },
+
   /** Streuung der Gebiete. Ohne sie waere die Zielwahl gleichgueltig. */
   spread: {
     demandSigma: 1.1,

@@ -10,9 +10,9 @@
 import { BALANCE } from './balance.js';
 import type { StoredNum } from './numbers.js';
 
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
-export interface SaveV3 {
+export interface SaveV4 {
   v: number;
   savedAt: number;          // Wanduhr, fuer den Offline-Fortschritt
   time: number;             // gespielte Sekunden
@@ -35,6 +35,9 @@ export interface SaveV3 {
   rngState: number;
   /** Nur der Versorgungsstand - die Gebiete selbst kommen aus dem Seed. */
   supplied: number[];
+  /** Was die Konkurrenz dort schon abgesetzt hat, und was ihr gehoert. */
+  rival: number[];
+  lost: boolean[];
 }
 
 export interface StorageAdapter {
@@ -65,11 +68,11 @@ export class IncompatibleSaveError extends Error {}
  * der Stand also unspielbar. Solche Staende werden abgelehnt, nicht halb
  * uebersetzt.
  */
-export function migrate(raw: unknown): SaveV3 {
+export function migrate(raw: unknown): SaveV4 {
   if (typeof raw !== 'object' || raw === null) {
     throw new IncompatibleSaveError('Speicherstand unlesbar');
   }
-  const save = raw as Partial<SaveV3>;
+  const save = raw as Partial<SaveV4>;
   const version = save.v ?? 0;
   if (version > SAVE_VERSION) {
     throw new IncompatibleSaveError(
@@ -78,11 +81,11 @@ export function migrate(raw: unknown): SaveV3 {
   if (version < SAVE_VERSION) {
     throw new IncompatibleSaveError(`Speicherstand ist aus Version ${version} und passt nicht mehr`);
   }
-  return save as SaveV3;
+  return save as SaveV4;
 }
 
 /** Vergangene Zeit seit dem Speichern, gedeckelt. */
-export function offlineSeconds(save: SaveV3, now = Date.now()): { seconds: number; capped: boolean } {
+export function offlineSeconds(save: SaveV4, now = Date.now()): { seconds: number; capped: boolean } {
   const elapsed = Math.max(0, (now - save.savedAt) / 1000);
   const capped = elapsed > BALANCE.offlineCapSeconds;
   return { seconds: Math.min(elapsed, BALANCE.offlineCapSeconds), capped };

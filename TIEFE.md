@@ -10,9 +10,29 @@ bekommt eine zweite Verwendung. Beides steht in CLAUDE.md, die Begruendung in
 Abschnitt 2a und E1 hier. Der Befund in Abschnitt 1 ist davon unberuehrt - er
 beschreibt das Modell, nicht das Thema.
 
-STAND 2026-08-27: Schritt 0 (Thema) und Schritt 1 (E1, Pflanzen-Kreislauf und
-Betriebskosten) sind GEBAUT und durchgemessen. Was dabei herauskam - auch das,
-was nicht aufging - steht in BALANCING.md. E2, E3 und E4 stehen noch aus.
+STAND 2026-08-27: Schritt 0 (Thema), Schritt 1 (E1, Pflanzen-Kreislauf und
+Betriebskosten) und Schritt 2 (E3, Konkurrenz) sind GEBAUT und durchgemessen.
+Was dabei herauskam - auch das, was nicht aufging - steht in BALANCING.md.
+E2 (Sorten) und E4 (Entfaltung) stehen noch aus.
+
+DAS ABBRUCHKRITERIUM AUS ABSCHNITT 5 HAT GEGRIFFEN, und zwar anders als
+erwartet. Der Rivale hebt den Aktiv/Idle-Faktor der ZIELWAHL nur von 1.09 auf
+1.11 - unter der Marke von 1.3, egal wie stark man ihn stellt (durchgemessen
+ueber Anteil 0.35 bis 1.2 und Streuung 3 bis 6; ein staerkerer Rivale bestraft
+beide Spielweisen gleich und aendert das Verhaeltnis nicht).
+
+ABER: die Messung stellte die falsche Frage. Sie verglich zwei AUTOPILOTEN
+miteinander - "bestes Gebiet zuerst" gegen "der Reihe nach". Das Spiel waehlt
+das Ziel aber ohnehin selbst, wenn niemand hinsieht; ein idlender Spieler kann
+an der Zielwahl also gar nicht scheitern. Gemessen an der richtigen Frage -
+Regler nachstellen gegen Regler stehen lassen - steht der Faktor bei 1.81 und
+damit mitten in der Vorgabe von 1.5 bis 2.
+
+KONSEQUENZ: Die Zielwahl ist als TRAEGER des aktiven Spiels widerlegt, wie es
+das Abbruchkriterium vorsah. Sie bleibt trotzdem drin, weil die Konkurrenz sie
+zu einem Rennen mit spuerbaren Kosten macht (ein unaufmerksamer Spieler verliert
+22 Gebiete, ein aufmerksamer eines). Die Hauptentscheidung ist ab jetzt der
+Regler, und die zweite Baustelle bleibt die KAUFENTSCHEIDUNG - dafuer ist E2 da.
 
 Dieses Dokument ergaenzt CLAUDE.md, es ersetzt es nicht.
 

@@ -2,13 +2,14 @@
  * Regressionslauf. Prueft die DESIGN-ZIELE, nicht einzelne Zahlen:
  *
  *   Gesamtdauer aktiv   5 - 8 h
- *   keine Einzelstufe   > 60 min
- *   aktive Zielwahl schneller als der stumpfe Autopilot
- *   Renten tragen spuerbar bei, ersetzen das Kochen aber nicht
+ *   aktiv schlaegt idle um Faktor 1.5 (CLAUDE.md)
+ *   nie laenger als 15 min ohne Uebernahme
+ *   Renten tragen spuerbar bei, ersetzen den Anbau aber nicht
  *
  * Laeuft bei jeder Aenderung an balance.ts mit (siehe PLAN.md, Risiken).
  */
 import { Sim } from '../src/core/sim.js';
+import { BALANCE } from '../src/core/balance.js';
 import { levelName, maxLevel } from '../src/core/world.js';
 import { fmt } from '../src/core/numbers.js';
 import { decide } from './autoplay.js';
@@ -19,7 +20,26 @@ import { decide } from './autoplay.js';
  * Geprueft wird deshalb die groesste Luecke zwischen zwei Uebernahmen und
  * nicht die Stufenlaenge - die waechst bewusst von 9 auf rund 100 Minuten.
  */
-const TARGET = { minHours: 5, maxHours: 8, maxGapMinutes: 15 };
+const TARGET = { minHours: 5, maxHours: 8, maxGapMinutes: 15, activeEdge: 1.5 };
+
+/**
+ * AKTIV GEGEN IDLE - die Vorgabe aus CLAUDE.md (Faktor 1.5 bis 2).
+ *
+ * Gemessen wird der Unterschied zwischen "der Spieler stellt den Regler nach"
+ * und "der Regler steht, wo er stand". NICHT die Zielwahl: die trifft das Spiel
+ * ohnehin selbst, wenn niemand hinsieht, also kann ein idlender Spieler daran
+ * gar nicht scheitern. Die alte Messung verglich zwei Autopiloten miteinander
+ * und kam deshalb jahrelang auf Faktor 1.07 - sie mass die falsche Sache.
+ */
+function playIdle(seed = 1) {
+  const sim = new Sim({ seed });
+  while (!sim.finished && sim.time < 40 * 3600) {
+    sim.setSeedShare(BALANCE.plant.seedShare0);
+    sim.tick();
+    decide(sim, { tuneSeed: false });
+  }
+  return sim;
+}
 
 function play(dumbTargeting: boolean, seed = 1) {
   const marks = new Map<number, number>();
@@ -72,6 +92,11 @@ for (const [label, dumb] of runs) {
     ` Rente ${fmt(sim.rentPerSecond())}/s`);
 }
 
+const idle = playIdle();
+const activeEdge = idle.finished
+  ? idle.time / results.get('smart')!.sim.time
+  : Infinity;
+
 const smart = results.get('smart')!;
 const dumb = results.get('dumb')!;
 const smartHours = smart.sim.time / 3600;
@@ -84,6 +109,11 @@ const checks: Array<[string, boolean, string]> = [
   ['Durchspielbar', smart.sim.finished, smart.sim.finished ? 'ja' : 'nein'],
   [`Dauer ${TARGET.minHours}-${TARGET.maxHours} h`,
     smartHours >= TARGET.minHours && smartHours <= TARGET.maxHours, `${smartHours.toFixed(2)} h`],
+  [`Aktiv schlaegt idle um >= ${TARGET.activeEdge}x`, activeEdge >= TARGET.activeEdge,
+    idle.finished
+      ? `Regler unberuehrt ${(idle.time / 3600).toFixed(2)} h gegen nachgestellt ` +
+        `${smartHours.toFixed(2)} h = Faktor ${activeEdge.toFixed(2)}`
+      : 'mit unberuehrtem Regler gar nicht durchspielbar'],
   ['Kluge Zielwahl lohnt sich', dumb.sim.time > smart.sim.time,
     `stur ${(dumb.sim.time / 3600).toFixed(2)} h gegen klug ${smartHours.toFixed(2)} h`],
   [`Nie laenger als ${TARGET.maxGapMinutes} min ohne Uebernahme`,

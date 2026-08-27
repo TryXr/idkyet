@@ -273,7 +273,7 @@ function targetView(sim: Sim, territory: Territory | null): TargetView | null {
   const rate = Math.min(sim.output(), sim.sellRate());
   return {
     id: territory.id,
-    name: territory.name,
+    name: territory.lost ? `${territory.name} (zurückholen)` : territory.name,
     fraction: fraction(territory),
     fractionText: `${(fraction(territory) * 100).toFixed(1)} % versorgt`,
     missingText: `noch ${fmt(rest)} Ernte`,
@@ -360,6 +360,14 @@ export function buildViewModel(sim: Sim): ViewModel {
     if (!handsVisible && sim.emptySeats() > sim.seats() * 0.4) {
       warnings.push(WARNINGS.emptySeats);
     }
+    // Die Konkurrenz wird NAMENTLICH gemeldet, sobald es eng wird. Eine
+    // Warnung ohne Ortsnamen waere keine - der Spieler soll wissen, wohin er
+    // liefern muss, nicht nur, dass irgendwo etwas passiert.
+    const threatened = sim.territories
+      .filter(t => !t.owned && t.demand > 0 && t.rival / t.demand > 0.7)
+      .sort((a, b) => b.rival / b.demand - a.rival / a.demand)[0];
+    if (threatened) warnings.push(`${WARNINGS.rivalClose} ${threatened.name}`);
+
     if (absatz <= 0 && sim.storage > 0) warnings.push(WARNINGS.noSellers);
     if ((sim.cook[0] ?? 0) < 1 && !handsVisible) warnings.push(WARNINGS.noWorkers);
   }
@@ -443,6 +451,7 @@ export function buildViewModel(sim: Sim): ViewModel {
 /** Die Gebiete fuer Karte und Liste. */
 export function territoryRows(sim: Sim): Array<{
   id: number; name: string; fraction: number; owned: boolean; isTarget: boolean;
+  rival: number; lost: boolean;
 }> {
   const target = sim.target();
   return sim.territories.map(t => ({
@@ -451,6 +460,8 @@ export function territoryRows(sim: Sim): Array<{
     fraction: fraction(t),
     owned: t.owned,
     isTarget: target?.id === t.id,
+    rival: t.demand > 0 ? Math.min(1, t.rival / t.demand) : 0,
+    lost: t.lost,
   }));
 }
 
