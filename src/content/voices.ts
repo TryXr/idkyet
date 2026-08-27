@@ -55,37 +55,37 @@ const unit = (
 export const VOICE_LINES: readonly VoiceLine[] = [
   // --- 0 Ruhrgebiet ------------------------------------------------------
   enter('start-1', 0, 'Die Prophetin', 'Beliefere jeden. Jeden Einzelnen. Dann sind wir still.'),
-  enter('start-2', 0, 'Der Buchhalter', 'Wir beginnen im Badezimmer in Duisburg. Ich möchte protokolliert haben, dass ich dagegen war.'),
-  unit('start-3', 0, 'cook', 0, 'Kevin', 'Der Junkie kocht jetzt für dich. Du musst nicht mehr selbst rühren. Ich fand Rühren schön.'),
+  enter('start-2', 0, 'Der Buchhalter', 'Ein Badezimmer, eine Pflanze, kein Kapital. Was du zurücklegst, wird die zweite Pflanze. Was du verkaufst, wird Geld. Beides geht nicht, ich habe es nachgerechnet.'),
+  unit('start-3', 0, 'cook', 0, 'Kevin', 'Der Gärtner gießt jetzt für dich. Du musst nicht mehr selbst. Ich fand Gießen schön.'),
   unit('start-4', 0, 'sell', 0, 'Der Buchhalter', 'Ein Dealer. Ab jetzt verkauft sich das von allein, auch wenn du nicht hinsiehst.'),
   on('start-5', 0, 'territoryTaken', 'Die Prophetin', 'Duisburg ist versorgt. Es gehört uns. Es zahlt jetzt. Für immer.'),
 
   // --- 1 Deutschland -----------------------------------------------------
   enter('de-1', 1, 'Kevin', 'Ganz Deutschland! Also erstmal Düsseldorf. Aber das zählt auch.'),
-  enter('de-2', 1, 'Der Buchhalter', 'Rechnerisch dreihunderttausend Kunden je Stadt und ein Ordnungsamt.'),
-  unit('de-3', 1, 'cook', 1, 'Der Buchhalter', 'Ein Koch. Er kocht nichts. Er stellt Junkies ein. Dafür wird er bezahlt, ja.'),
-  room('de-4', 1, 2, 'Kevin', 'Ein Wohnwagen kann wegfahren. Der Ärger bleibt trotzdem stehen. Finde ich unfair.'),
-  on('de-5', 1, 'storageFull', 'Kevin', 'Das Lager ist voll und die Leute kochen einfach weiter. Also nein. Tun sie nicht. Sie stehen jetzt rum.'),
+  enter('de-2', 1, 'Der Buchhalter', 'Die Stromrechnung. Sie läuft für jeden Platz, auch für die leeren. Besonders für die leeren, gefühlt.'),
+  unit('de-3', 1, 'cook', 1, 'Der Buchhalter', 'Ein Grower. Er gießt nichts. Er stellt Gärtner ein. Dafür wird er bezahlt, ja.'),
+  room('de-4', 1, 2, 'Kevin', 'Der Dachboden. Warm, trocken, niemand geht da hoch. Perfekt. Bis jemand hochgeht.'),
+  on('de-5', 1, 'storageFull', 'Kevin', 'Das Lager ist voll und die Leute ernten einfach weiter. Also nein. Tun sie nicht. Sie stehen jetzt rum.'),
 
   // --- 2 Europa ----------------------------------------------------------
   enter('eu-1', 2, 'Der Buchhalter', 'Grenzen sind Striche auf Karten. Der Zoll ist trotzdem echt. Ich habe Formulare besorgt.'),
   enter('eu-2', 2, 'Die Prophetin', 'Sie schlafen. Sie ahnen nichts. Wecke sie behutsam. Mit Angebot.'),
   unit('eu-3', 2, 'sell', 1, 'Kevin', 'Ein Straßenboss! Der stellt Dealer ein. Wir stellen jetzt Leute ein, die Leute einstellen.'),
-  room('eu-4', 2, 4, 'Die Prophetin', 'Eine Lagerhalle. Endlich etwas, das aussieht, als gehörte es dir.'),
+  room('eu-4', 2, 4, 'Die Prophetin', 'Die Garage. Das Auto steht jetzt draußen. Das Auto hat nie etwas eingebracht.'),
   enter('eu-5', 2, 'Kevin', 'Die Nachbarn kennen uns noch nicht. Das ist der beste Zustand, in dem ein Nachbar sein kann.'),
 
   // --- 3 Welt ------------------------------------------------------------
   enter('welt-1', 3, 'Die Prophetin', 'Die Welt. Von hier sehen die Gebiete aus wie Zellen. Sie füllen sich. Sie gehören uns.'),
   enter('welt-2', 3, 'Der Buchhalter', 'Zur Erinnerung: angefangen haben wir im Badezimmer. Ich führe darüber Buch.'),
-  unit('welt-3', 3, 'sell', 2, 'Der Buchhalter', 'Ein Kartellchef. Er stellt Straßenbosse ein, die Dealer einstellen. Das Organigramm ist inzwischen zwei Seiten lang.'),
-  room('welt-4', 3, 7, 'Kevin', 'Ein Gewächshaus. Weit, satt, grün. Frag nicht, was darin wächst. Es wächst.'),
-  unit('welt-5', 3, 'cook', 2, 'Der Buchhalter', 'Ein Chemiker. Er stellt Köche ein. Niemand in dieser Kette kocht noch selbst, das ist mir aufgefallen.'),
+  unit('welt-3', 3, 'sell', 2, 'Der Buchhalter', 'Ein Großhändler. Er stellt Straßenbosse ein, die Dealer einstellen. Das Organigramm ist inzwischen zwei Seiten lang.'),
+  room('welt-4', 3, 7, 'Kevin', 'Eine Scheune. Ein ganzes Gebäude, in dem nur Pflanzen wohnen. Die haben es besser als ich.'),
+  unit('welt-5', 3, 'cook', 2, 'Der Buchhalter', 'Ein Botaniker. Er stellt Grower ein. Niemand in dieser Kette fasst noch eine Gießkanne an, das ist mir aufgefallen.'),
 
   // --- 4 Erdorbit --------------------------------------------------------
   enter('orbit-1', 4, 'Kevin', 'Wir sind im Weltraum. WIR SIND IM WELTRAUM. Entschuldigung. Ich bin wieder ruhig.'),
   enter('orbit-2', 4, 'Der Buchhalter', 'Die Erde ist voll. Das war absehbar. Der Rest liegt oben.'),
   enter('orbit-3', 4, 'Die Prophetin', 'Von hier oben ist die Erde ein einziger Kunde. Ein müder, gut belieferter Kunde.'),
-  room('orbit-4', 4, 8, 'Die Prophetin', 'Ein Frachtschiff. Das Meer gehört niemandem. Das Meer gehört jetzt uns.'),
+  room('orbit-4', 4, 8, 'Die Prophetin', 'Eine Lagerhalle. Endlich etwas, das aussieht, als gehörte es dir.'),
   enter('orbit-5', 4, 'Kevin', 'Wenn wir einen ganzen Planeten beliefern, kriegen wir dann so eine Flagge?'),
 
   // --- 5 Mond & Mars -----------------------------------------------------
@@ -97,7 +97,7 @@ export const VOICE_LINES: readonly VoiceLine[] = [
   enter('outer-1', 6, 'Der Buchhalter', 'Die Lieferfrist zum Asteroidengürtel liegt bei elf Monaten. Ein ganz normales Problem. Ich habe es im Griff.'),
   enter('outer-2', 6, 'Kevin', 'Ich hab den Asteroiden Namen gegeben. Der große da heißt Kevin. Nach mir.'),
   enter('outer-3', 6, 'Die Prophetin', 'Noch ein Mond. Noch ein Ring. Noch einer. Wir sind so nah.'),
-  room('outer-4', 6, 12, 'Kevin', 'Eine Orbitalstation. Die dreht sich, damit die Junkies nicht wegschweben. Daran hat jemand gedacht.'),
+  room('outer-4', 6, 10, 'Kevin', 'Ein Orbitalgewächshaus. Das dreht sich, damit die Pflanzen nicht wegschweben. Daran hat jemand gedacht.'),
 
   // --- 7 Interstellar (Ende) ---------------------------------------------
   enter('inter-1', 7, 'Die Prophetin', 'Andere Sterne. Andere Kunden. Es hört nicht auf.'),

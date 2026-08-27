@@ -3,7 +3,25 @@
 Deadline spielbarer Prototyp: 2026-10-06.
 Grundlagen: CLAUDE.md (Design), BALANCING.md (Zahlen).
 
-## Wo wir stehen (2026-08-26)
+## Wo wir stehen (2026-08-27)
+
+Thema auf WEED umgestellt und der Pflanzen-Kreislauf eingebaut (Schritt 0 und 1
+aus TIEFE.md). Die Ernte hat jetzt zwei Verwendungen, Raeume kosten laufend
+Strom, und beide Helfer-Ketten stellen nur noch nach Bedarf ein.
+
+    npm run decisions  # NEU: ist der Regler wirklich eine Entscheidung?
+
+Gemessen: 5.55 h Gesamtdauer, alle 120 Gebiete, groesste Luecke 11 min, Renten
+33 %. Der Regler traegt: die beste FESTE Stellung braucht 25 % laenger als die
+mitdenkende, beide Extreme kommen gar nicht durch. Beide Ketten bleiben ab
+Ebene 4 innerhalb von Faktor 1.4 beieinander, der Engpass wechselt, und
+Kettenstufe 3 wird endlich gekauft. Details in BALANCING.md.
+
+NOCH OFFEN AUS TIEFE.md: E2 (Sorten), E3 (Rivale), E4 (Entfaltungsplan). Die
+beiden Kennzahlen, die noch fehlen, haengen genau daran: Entscheidungsdichte
+17 % statt 30 %, und aktiv schlaegt idle nur um Faktor 1.09 statt 1.5.
+
+## Wo wir vorher standen (2026-08-26)
 
 Das Spiel wurde neu gefasst: aus dem Marktmodell (Preisverfall, Hitze,
 Statthalter) wurde das GEBIETSMODELL - kochen, verkaufen, uebernehmen. Der

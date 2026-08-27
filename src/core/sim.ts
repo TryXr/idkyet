@@ -4,21 +4,25 @@
  *
  * Der Ablauf eines Ticks ist die Kurzfassung des ganzen Spiels:
  *   1. Die Ketten wachsen (jede Stufe stellt die darunter ein).
- *   2. Arbeiter in Raeumen machen Ware, das Lager fuellt sich.
- *   3. Verkaeufer liefern ins Zielgebiet, das bringt Bargeld und fuellt dort
- *      den Versorgungsbalken.
- *   4. Uebernommene Gebiete zahlen Rente.
- *   5. Sind alle Gebiete einer Ebene deins, zoomt die Karte heraus.
+ *   2. Pflanzen in Raeumen bringen Ernte, so gut die Gaertner sie pflegen und
+ *      so weit die Stromrechnung bezahlt ist.
+ *   3. Die Ernte teilt sich: ein Teil ins Lager, der Rest als Stecklinge
+ *      zurueck. Das ist die zentrale Entscheidung des Spielers.
+ *   4. Verkaeufer liefern aus dem Lager ins Zielgebiet, das bringt Bargeld
+ *      und fuellt dort den Versorgungsbalken.
+ *   5. Uebernommene Gebiete zahlen Rente, die Betriebskosten gehen ab.
+ *   6. Sind alle Gebiete einer Ebene deins, zoomt die Karte heraus.
  */
 import { BALANCE } from './balance.js';
-import { D, type Num } from './numbers.js';
+import { D, fromStored, toStored, type Num } from './numbers.js';
 import { Rng } from './rng.js';
 import {
   effectiveUnits, growChain, milestoneMultiplier, nextMilestone, TIERS,
   unitCost, type ChainKey,
 } from './chains.js';
 import {
-  bestQuality, idleWorkers, production, roomCost, roomCount, roomSeats, totalSeats,
+  bestQuality, bestTier, billedPotential, idlePlants, production, roomCost, roomCount,
+  roomSeats, totalSeats,
 } from './rooms.js';
 import {
   allOwned, bestTarget, deliver, firstOpen, fraction, missing, rentOf, type Territory,
@@ -27,7 +31,7 @@ import { generateLevel, levelDemand, levelName, levelPrice, maxLevel } from './w
 import { EventBus, type EventListener, type GameEvent } from './events.js';
 import {
   migrate, offlineSeconds, SAVE_VERSION,
-  type SaveV2, type StorageAdapter,
+  type SaveV3, type StorageAdapter,
 } from './save.js';
 
 export interface SimOptions {
@@ -48,6 +52,15 @@ export class Sim {
   sell: number[] = new Array(TIERS).fill(0);
   /** Raeume je Art. */
   rooms: number[] = new Array(roomCount()).fill(0);
+
+  /** Ausgewachsene Pflanzen. Wachsen NUR aus der eigenen Ernte, nie aus Geld. */
+  plants = 1;
+  /** Stecklinge, die noch reifen. Der Vorlauf, den man einplanen muss. */
+  seedlings = 0;
+  /** Anteil der Ernte, der als Steckling zurueckgeht. Der Regler. */
+  seedShare = BALANCE.plant.seedShare0;
+  /** Wie viel der Betriebskosten zuletzt bezahlt werden konnte (0.2 bis 1). */
+  powerShare = 1;
 
   storage = 0;
   storageLevel = 0;
@@ -82,8 +95,8 @@ export class Sim {
 
   // --- Ableitungen ---------------------------------------------------------
 
-  /** Arbeiter, die wirklich kochen (Meilensteine eingerechnet). */
-  workers(): number {
+  /** Gaertner, die wirklich pflegen (Meilensteine eingerechnet). */
+  gardeners(): number {
     return effectiveUnits(this.cook);
   }
 
@@ -92,12 +105,47 @@ export class Sim {
     return effectiveUnits(this.sell);
   }
 
-  /** Ware je Sekunde. */
-  output(): number {
-    return production(this.workers(), this.rooms);
+  /** Pflanzen, die einen Platz haben. Der Rest wartet. */
+  activePlants(): number {
+    return Math.min(this.plants, this.seats());
   }
 
-  /** Ware je Sekunde, die abgesetzt werden koennte. */
+  /**
+   * Pflege, 0 bis 1. Weiche Kurve statt hartem Minimum: ein Gaertner mehr
+   * bringt IMMER etwas, nur immer weniger. Ein hartes min() waere wieder das
+   * Thermostat aus TIEFE.md, Befund 1.2 - dann gaebe es nichts abzuwaegen.
+   */
+  care(): number {
+    const need = production(this.activePlants(), this.rooms);
+    if (need <= 0) return 1;
+    const ratio = (this.gardeners() * BALANCE.care.perGardener) / need;
+    return 1 - Math.exp(-ratio);
+  }
+
+  /** Ernte je Sekunde: Pflanzen mal Raumqualitaet mal Pflege mal Strom. */
+  output(): number {
+    return production(this.activePlants(), this.rooms) * this.care() * this.powerShare;
+  }
+
+  /**
+   * Was der Betrieb kostet - je Sekunde, in Bargeld.
+   *
+   * Das erste Badezimmer ist FREI: es laeuft ueber den normalen Hausstrom, und
+   * niemandem faellt es auf. Ohne diese Freigrenze begaenne das Spiel mit einer
+   * offenen Rechnung - man hat in Sekunde eins kein Bargeld, kann also nicht
+   * zahlen, und das Erste, was ein Neuling liest, waere eine Mahnung.
+   */
+  upkeepRate(): number {
+    return billedPotential(this.rooms) * levelPrice(this.level) * BALANCE.upkeep.share;
+  }
+
+  /** Ernte, die ein neuer Steckling kostet. Waechst mit der besten Raumstufe. */
+  seedCost(): number {
+    return BALANCE.plant.seedCost0 *
+      Math.pow(BALANCE.plant.seedCostMult, bestTier(this.rooms));
+  }
+
+  /** Ernte je Sekunde, die abgesetzt werden koennte. */
   sellRate(): number {
     return this.sellers() * BALANCE.sell.sellRate;
   }
@@ -106,16 +154,55 @@ export class Sim {
     return totalSeats(this.rooms);
   }
 
+  /** Pflanzen ohne Platz - das Signal fuer den naechsten Raum. */
   idle(): number {
-    return idleWorkers(this.workers(), this.rooms);
+    return idlePlants(this.plants, this.rooms);
+  }
+
+  /**
+   * GUETE der Ernte, 0 bis 1: wie nah die Pflanzen im Schnitt am besten Raum
+   * stehen, den du hast. Voll ist sie nur, wenn keine Pflanze mehr im
+   * Badezimmer steht.
+   *
+   * Die Zahl gab es vorher schon - sie steckte unsichtbar im Ertrag. Genau das
+   * ist der Unterschied zu Dr. Meth, wo die Reinheit angezeigt und in den Preis
+   * gerechnet wird (TIEFE.md, 2a). Eine unsichtbare Zahl kann sich nicht gut
+   * anfuehlen.
+   */
+  grade(): number {
+    const active = this.activePlants();
+    if (active <= 0) return 1;
+    return production(active, this.rooms) / active / bestQuality(this.rooms);
+  }
+
+  /** Freie Plaetze, die trotzdem Strom kosten. */
+  emptySeats(): number {
+    return Math.max(0, this.seats() - this.plants);
+  }
+
+  /**
+   * Wie dringend Verkaeufer gebraucht werden, 0 bis 1: liegt Ernte im Lager,
+   * die niemand abholt? Voll, wenn der Absatz hinter der Ernte zurueckbleibt.
+   */
+  sellNeed(): number {
+    const out = production(this.activePlants(), this.rooms) * this.care();
+    if (out <= 0) return 0;
+    return Math.max(0, Math.min(1, 1 - this.sellRate() / out));
   }
 
   storageCap(): number {
-    // Der Handbetrieb braucht auch dann Platz, wenn noch kein Arbeiter da ist -
-    // sonst waere der allererste Klick wirkungslos.
-    const perSecond = Math.max(this.output(), BALANCE.manual.cookPortion * bestQuality(this.rooms));
-    return perSecond * BALANCE.storage.bufferSeconds *
+    // Gerechnet wird mit VOLLER Pflege, nicht mit dem aktuellen Ertrag: sonst
+    // schrumpfte das Lager genau dann, wenn die Pflege einbricht - und der
+    // Spieler verlaere Ware, weil er knapp bei Kasse ist.
+    const full = production(this.activePlants(), this.rooms);
+    const byHand = BALANCE.manual.cookPortion * bestQuality(this.rooms) * this.handPlants();
+    return Math.max(full, byHand) * BALANCE.storage.bufferSeconds *
       Math.pow(BALANCE.storage.bufferPerLevel, this.storageLevel);
+  }
+
+  /** Pflanzen, die der Spieler von Hand abernten kann - mindestens die erste. */
+  private handPlants(): number {
+    return Math.max(1, this.activePlants());
   }
 
   /** Rente aller uebernommenen Gebiete, auch der frueheren Ebenen. */
@@ -150,32 +237,67 @@ export class Sim {
   tick(dt = BALANCE.tickSeconds): void {
     if (this.finished) return;
 
-    growChain(this.cook, dt);
-    growChain(this.sell, dt);
+    // Eingestellt wird nach BEDARF, nicht nach Uhrzeit: Gaertner, solange die
+    // Pflege nicht reicht, Dealer, solange Ernte liegen bleibt. Beides steigt
+    // wieder, sobald ein neuer Raum dazukommt - deshalb bleibt die Bedienung
+    // bis zum Schluss lebendig.
+    growChain(this.cook, dt, 1 - this.care());
+    growChain(this.sell, dt, this.sellNeed());
 
-    // Produktion. Volles Lager stoppt sie - kein Verlust, nur Stillstand.
+    // Erst die Stromrechnung: was nicht bezahlt ist, druckt die Pflege - aber
+    // nie unter den Boden, damit es keine Todesspirale gibt. Gerechnet wird mit
+    // dem Bargeld vom Anfang des Ticks, damit der Ablauf deterministisch bleibt
+    // und der Offline-Nachlauf mit groeberen Schritten dasselbe ergibt.
+    const due = this.upkeepRate() * dt;
+    this.powerShare = due <= 0 ? 1
+      : Math.min(1, Math.max(BALANCE.care.floor, this.cash.toNumber() / due));
+
+    // Ernte. Sie teilt sich nach dem Regler: Lager oder Stecklinge.
+    const harvest = this.output() * dt;
+    const back = harvest * this.seedShare;
+    const keep = harvest - back;
+
+    // Volles Lager stoppt den verkaeuflichen Teil - kein Verlust, nur Stillstand.
     const room = Math.max(0, this.storageCap() - this.storage);
-    const wanted = this.output() * dt;
-    const throttled = wanted > room + 1e-9;
+    const throttled = keep > room + 1e-9;
     if (throttled && !this.storageStalled) this.emit({ type: 'storageFull', at: this.time });
     this.storageStalled = throttled;
-    this.storage += Math.min(wanted, room);
+    this.storage += Math.min(keep, room);
+
+    this.growPlants(back, dt);
 
     // Verkauf ins Zielgebiet.
     const revenue = this.deliverFromStorage(this.sellRate() * dt);
 
-    // Renten laufen immer mit.
+    // Renten laufen immer mit, die Betriebskosten gehen ab.
     const rent = this.rentPerSecond() * dt;
     const income = revenue + rent;
-    this.cash = this.cash.add(income);
+    const paid = due * this.powerShare;
+    this.cash = this.cash.add(income).sub(paid).max(0);
     this.lifetime = this.lifetime.add(income);
 
-    const perSecond = dt > 0 ? income / dt : 0;
+    // Angezeigt und fuer Kaufprognosen benutzt wird der NETTO-Ertrag. Eine
+    // Wartezeit, die die Stromrechnung unterschlaegt, waere gelogen.
+    const perSecond = dt > 0 ? (income - paid) / dt : 0;
     const smoothing = Math.min(1, dt / 30);
     this.incomeRate = this.incomeRate * (1 - smoothing) + perSecond * smoothing;
 
     this.time += dt;
     this.checkLevelUp();
+  }
+
+  /**
+   * Zurueckgelegte Ernte wird zu Stecklingen, und Stecklinge reifen mit
+   * Verzoegerung zu Pflanzen. Der Vorlauf ist Absicht: wer erst saet, wenn der
+   * neue Raum schon steht, hat ihn zu spaet voll. Dadurch ist der Regler eine
+   * Entscheidung mit Voraussicht und kein Schalter.
+   */
+  private growPlants(harvestBack: number, dt: number): void {
+    if (harvestBack > 0) this.seedlings += harvestBack / this.seedCost();
+    if (this.seedlings <= 0) return;
+    const matured = this.seedlings * Math.min(1, dt / BALANCE.plant.growSeconds);
+    this.seedlings -= matured;
+    this.plants += matured;
   }
 
   /**
@@ -221,12 +343,30 @@ export class Sim {
     this.emit({ type: 'levelUp', level: this.level, at: this.time });
   }
 
+  /**
+   * Ertrag, mit dem Kaufprognosen rechnen: was hereinkaeme, wenn die ganze
+   * Ernte verkauft wuerde.
+   *
+   * Warum nicht der tatsaechliche Ertrag: wer viel zurueklegt, verdient gerade
+   * fast nichts - dann stuende an JEDEM Kauf "kein Ertrag", und das Spiel saehe
+   * aus wie eine Sackgasse, obwohl es in genau diesem Moment am schnellsten
+   * waechst. Die Prognose beantwortet deshalb die Frage, die der Spieler
+   * wirklich hat: "wie lange, wenn ich jetzt verkaufe?"
+   */
+  projectedRate(): number {
+    const full = production(this.activePlants(), this.rooms) * this.care() * this.powerShare;
+    const sold = Math.min(full, this.sellRate());
+    return sold * levelPrice(this.level) + this.rentPerSecond()
+      - this.upkeepRate() * this.powerShare;
+  }
+
   /** Wie lange dauert es beim aktuellen Ertrag, bis der Betrag da ist? */
   secondsUntil(cost: Num): number {
     const missingCash = cost.sub(this.cash);
     if (missingCash.lte(0)) return 0;
-    if (this.incomeRate <= 0) return Infinity;
-    return missingCash.div(this.incomeRate).toNumber();
+    const rate = Math.max(this.incomeRate, this.projectedRate());
+    if (rate <= 0) return Infinity;
+    return missingCash.div(rate).toNumber();
   }
 
   /**
@@ -245,13 +385,26 @@ export class Sim {
 
   // --- Handbetrieb ---------------------------------------------------------
 
-  /** Eine Portion von Hand kochen. Der erste Knopf des Spiels. */
+  /**
+   * Von Hand ernten. Der erste Knopf des Spiels - und er wird mit jeder
+   * Pflanze besser. Das ist der Grund, warum der Spieler das Zuruecklegen
+   * schon in der ersten Minute versteht: die zweite Pflanze verdoppelt das,
+   * was ein Klick bringt, ganz ohne Erklaerung.
+   */
   cookByHand(): number {
-    const amount = BALANCE.manual.cookPortion * bestQuality(this.rooms);
+    const amount = BALANCE.manual.cookPortion * bestQuality(this.rooms) * this.handPlants();
+    const back = amount * this.seedShare;
+    const keep = amount - back;
     const room = Math.max(0, this.storageCap() - this.storage);
-    const made = Math.min(amount, room);
-    this.storage += made;
-    return made;
+    const stored = Math.min(keep, room);
+    this.storage += stored;
+    this.growPlants(back, 0);
+    return stored + back;
+  }
+
+  /** Der Regler: Anteil der Ernte, der als Steckling zurueckgeht. */
+  setSeedShare(value: number): void {
+    this.seedShare = Math.min(1, Math.max(0, value));
   }
 
   /** Eine Portion von Hand verkaufen. Der zweite Knopf. */
@@ -393,17 +546,20 @@ export class Sim {
 
   // --- Speichern und Laden ------------------------------------------------
 
-  toSave(now = Date.now()): SaveV2 {
+  toSave(now = Date.now()): SaveV3 {
     return {
       v: SAVE_VERSION,
       savedAt: now,
       time: this.time,
-      cash: this.cash.toString(),
-      lifetime: this.lifetime.toString(),
+      cash: toStored(this.cash),
+      lifetime: toStored(this.lifetime),
       level: this.level,
       cook: [...this.cook],
       sell: [...this.sell],
       rooms: [...this.rooms],
+      plants: this.plants,
+      seedlings: this.seedlings,
+      seedShare: this.seedShare,
       storage: this.storage,
       storageLevel: this.storageLevel,
       pastRent: this.pastRent,
@@ -423,15 +579,18 @@ export class Sim {
    * Versorgungsstand kommt aus der Datei - das haelt Staende klein und
    * ueberlebt Aenderungen an der Weltgenerierung.
    */
-  static fromSave(save: SaveV2, opts: SimOptions = {}): Sim {
+  static fromSave(save: SaveV3, opts: SimOptions = {}): Sim {
     const sim = new Sim({ ...opts, seed: save.seed });
     sim.time = save.time;
-    sim.cash = D(save.cash);
-    sim.lifetime = D(save.lifetime);
+    sim.cash = fromStored(save.cash);
+    sim.lifetime = fromStored(save.lifetime);
     sim.level = save.level;
     sim.cook = [...save.cook];
     sim.sell = [...save.sell];
     sim.rooms = [...save.rooms];
+    sim.plants = save.plants;
+    sim.seedlings = save.seedlings;
+    sim.seedShare = save.seedShare;
     sim.storage = save.storage;
     sim.storageLevel = save.storageLevel;
     sim.pastRent = save.pastRent;

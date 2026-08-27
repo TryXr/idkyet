@@ -77,3 +77,49 @@ console.log(`\nZum Vergleich Stand aus balance.ts: demandMult ${defaults.demandM
   ` qualityMult ${defaults.qualityMult}`);
 const current = measure();
 console.log(`  ${current.hours.toFixed(2)} h, Stufen (min): ${current.spans.join(' ')}`);
+
+/**
+ * Der Pflanzen-Kreislauf. Zwei Werte bestimmen, wie sich der Rhythmus anfuehlt:
+ *
+ *   seedCost0    wie teuer ein Steckling ist, also wie schnell ein neuer Raum
+ *                voll wird
+ *   growSeconds  wie lange ein Steckling reift, also wie viel Vorlauf noetig ist
+ *
+ * Gemessen wird nicht nur die Dauer, sondern auch der ANTEIL DER ZEIT IM
+ * AUFBAU. Ist der winzig, gibt es zwar rechnerisch eine Entscheidung, aber
+ * keine spuerbare Phase - und genau die soll den Raumkauf zum Ereignis machen.
+ */
+const plantDefaults = {
+  seedCost0: BALANCE.plant.seedCost0,
+  growSeconds: BALANCE.plant.growSeconds,
+};
+
+function buildShare(seed = 1): { hours: number; back: number; finished: boolean } {
+  const sim = new Sim({ seed });
+  let back = 0;
+  let total = 0;
+  while (!sim.finished && sim.time < 40 * 3600) {
+    sim.tick();
+    decide(sim);
+    total++;
+    if (sim.seedShare > 0.5) back++;
+  }
+  return { hours: sim.time / 3600, back: total > 0 ? back / total : 0, finished: sim.finished };
+}
+
+console.log('\n=== Pflanzen: Stecklingspreis gegen Reifezeit ===');
+console.log('seedCost0 | growSeconds | gesamt h | im Aufbau | ok?');
+for (const seedCost0 of [1.5, 4, 8, 16]) {
+  for (const growSeconds of [90, 240]) {
+    BALANCE.plant.seedCost0 = seedCost0;
+    BALANCE.plant.growSeconds = growSeconds;
+    const run = buildShare();
+    const ok = run.finished && run.hours >= 5 && run.hours <= 8 && run.back >= 0.15;
+    console.log(
+      seedCost0.toFixed(1).padStart(9), '|', String(growSeconds).padStart(11), '|',
+      (run.finished ? run.hours.toFixed(2) : '-').padStart(8), '|',
+      `${(run.back * 100).toFixed(0)}%`.padStart(9), '|', ok ? 'JA' : '-');
+  }
+}
+BALANCE.plant.seedCost0 = plantDefaults.seedCost0;
+BALANCE.plant.growSeconds = plantDefaults.growSeconds;

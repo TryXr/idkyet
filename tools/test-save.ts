@@ -4,7 +4,7 @@
  * Exitcode, damit das spaeter in CI taugt.
  */
 import { Sim } from '../src/core/sim.js';
-import { IncompatibleSaveError, MemoryStorage } from '../src/core/save.js';
+import { IncompatibleSaveError, MemoryStorage, SAVE_VERSION } from '../src/core/save.js';
 import { BALANCE } from '../src/core/balance.js';
 import { fmt } from '../src/core/numbers.js';
 import type { GameEvent } from '../src/core/events.js';
@@ -100,8 +100,12 @@ check('Kein Ertrag ohne Helfer', manualLoaded.cash.eq(manualCash), fmt(manualLoa
 // --- 5. Speicherformat -----------------------------------------------------
 console.log('\n=== Speicherformat ===');
 const raw = JSON.parse(storage.load()!);
-check('Version im Stand vermerkt', raw.v === 2, `v${raw.v}`);
-check('Grosse Zahlen als Text gesichert', typeof raw.cash === 'string', raw.cash);
+check('Version im Stand vermerkt', raw.v === SAVE_VERSION, `v${raw.v}`);
+// Verlustfrei heisst: als Mantisse und Exponent. Der Umweg ueber Text hat den
+// Stand um ein ULP verschoben und damit "identisch weitergespielt" gebrochen.
+check('Grosse Zahlen verlustfrei gesichert',
+  Array.isArray(raw.cash) && raw.cash.length === 2 && typeof raw.cash[0] === 'number',
+  JSON.stringify(raw.cash));
 check('RNG-Zustand gesichert', typeof raw.rngState === 'number');
 check('Nur der Versorgungsstand wird gesichert', Array.isArray(raw.supplied),
   `${raw.supplied.length} Werte`);

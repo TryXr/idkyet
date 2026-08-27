@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "tsx tools/test-save.ts && tsx tools/test-layout.ts && tsx tools/test-ui.ts",
     "diagnose": "tsx tools/diagnose.ts",
+    "decisions": "tsx tools/decisions.ts",
     "dev": "vite",
     "build": "vite build",
     "build:demo": "vite build --mode demo"

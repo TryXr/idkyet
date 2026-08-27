@@ -8,19 +8,25 @@
  * (CLAUDE.md, Architektur-Regel 2).
  */
 import { BALANCE } from './balance.js';
+import type { StoredNum } from './numbers.js';
 
-export const SAVE_VERSION = 2;
+export const SAVE_VERSION = 3;
 
-export interface SaveV2 {
+export interface SaveV3 {
   v: number;
   savedAt: number;          // Wanduhr, fuer den Offline-Fortschritt
   time: number;             // gespielte Sekunden
-  cash: string;             // Decimal als String - ueberlebt jede Groesse
-  lifetime: string;
+  /** Mantisse und Exponent - verlustfrei, siehe numbers.ts. */
+  cash: StoredNum;
+  lifetime: StoredNum;
   level: number;
   cook: number[];
   sell: number[];
   rooms: number[];
+  /** Pflanzen, reifende Stecklinge und die Stellung des Reglers. */
+  plants: number;
+  seedlings: number;
+  seedShare: number;
   storage: number;
   storageLevel: number;
   pastRent: number;
@@ -53,15 +59,17 @@ export class IncompatibleSaveError extends Error {}
  * Alte Staende auf die aktuelle Version heben.
  *
  * Version 1 war das Marktmodell mit Preis, Hitze und Statthaltern (Tag
- * `v1-marktmodell`). Daraus laesst sich kein Stand dieses Spiels ableiten -
- * es gibt keine Gebiete, keine Ketten und keine Raeume darin. Solche Staende
- * werden deshalb abgelehnt, nicht halb uebersetzt.
+ * `v1-marktmodell`), Version 2 das Gebietsmodell ohne Pflanzen. Aus beiden
+ * laesst sich kein Stand dieses Spiels ableiten: in v1 gibt es weder Gebiete
+ * noch Raeume, in v2 keine Pflanzen - und ohne Pflanzen ist der Ertrag null,
+ * der Stand also unspielbar. Solche Staende werden abgelehnt, nicht halb
+ * uebersetzt.
  */
-export function migrate(raw: unknown): SaveV2 {
+export function migrate(raw: unknown): SaveV3 {
   if (typeof raw !== 'object' || raw === null) {
     throw new IncompatibleSaveError('Speicherstand unlesbar');
   }
-  const save = raw as Partial<SaveV2>;
+  const save = raw as Partial<SaveV3>;
   const version = save.v ?? 0;
   if (version > SAVE_VERSION) {
     throw new IncompatibleSaveError(
@@ -70,11 +78,11 @@ export function migrate(raw: unknown): SaveV2 {
   if (version < SAVE_VERSION) {
     throw new IncompatibleSaveError(`Speicherstand ist aus Version ${version} und passt nicht mehr`);
   }
-  return save as SaveV2;
+  return save as SaveV3;
 }
 
 /** Vergangene Zeit seit dem Speichern, gedeckelt. */
-export function offlineSeconds(save: SaveV2, now = Date.now()): { seconds: number; capped: boolean } {
+export function offlineSeconds(save: SaveV3, now = Date.now()): { seconds: number; capped: boolean } {
   const elapsed = Math.max(0, (now - save.savedAt) / 1000);
   const capped = elapsed > BALANCE.offlineCapSeconds;
   return { seconds: Math.min(elapsed, BALANCE.offlineCapSeconds), capped };

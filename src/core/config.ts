@@ -12,8 +12,15 @@
  */
 import { LEVELS } from './balance.js';
 
-/** Bis hierher reicht die Demo: rund die ersten anderthalb Stunden. */
-export const DEMO_MAX_LEVEL = 5;
+/**
+ * Bis hierher reicht die Demo: rund die ersten zwei Stunden.
+ *
+ * Von 5 auf 4 gesenkt, als der Pflanzen-Kreislauf dazukam. Der Durchlauf wurde
+ * dadurch laenger (5.2 h -> 6.7 h), und damit lag die Demo bei ueber drei
+ * Stunden - zu viel fuer etwas, das nur Appetit machen soll (CLAUDE.md,
+ * Veroeffentlichung).
+ */
+export const DEMO_MAX_LEVEL = 4;
 
 export const CONFIG = {
   /** Hoechste erreichbare Zoomstufe. */

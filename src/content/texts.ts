@@ -8,29 +8,39 @@
  */
 
 export const HINTS = {
-  cook: 'Arbeiter kochen Ware. Wie viel, entscheidet der Raum: Badezimmer wenig, Labor viel.',
-  rooms: 'Räume bieten Plätze. Arbeiter ohne Platz stehen herum und kochen nichts.',
-  sell: 'Verkäufer setzen die Ware im Zielgebiet ab. Jede höhere Stufe stellt die darunter ein.',
-  storage: 'Volles Lager stoppt die Produktion. Nichts geht verloren, es steht nur still.',
-  target: 'Ware geht immer ins gewählte Gebiet. Ist es voll, gehört es dir und zahlt dauerhaft.',
+  cook: 'Gärtner pflegen die Pflanzen. Ohne Pflege bringt auch der beste Raum wenig.',
+  rooms: 'Räume bieten Plätze und bestimmen die Güte. Strom läuft für jeden Platz, auch für leere.',
+  sell: 'Verkäufer setzen die Ernte im Zielgebiet ab. Jede höhere Stufe stellt die darunter ein.',
+  storage: 'Volles Lager stoppt die Ernte. Nichts geht verloren, es steht nur still.',
+  target: 'Die Ernte geht immer ins gewählte Gebiet. Ist es voll, gehört es dir und zahlt dauerhaft.',
   map: 'Klick auf ein Gebiet macht es zum Ziel. Gefüllte Gebiete gehören dir. Mausrad zoomt, Ziehen verschiebt.',
+  seed: 'Was du zurücklegst, wird zu neuen Pflanzen. Was du verkaufst, wird zu Geld. Beides geht nicht.',
 } as const;
 
 export const HANDS = {
-  cook: 'Kochen',
+  cook: 'Ernten',
   sell: 'Verkaufen',
   /** Solange keine Helfer da sind, ist das der ganze Betrieb. */
-  hint: 'Am Anfang machst du beides selbst. Der erste Junkie kocht für dich, der erste Dealer verkauft.',
+  hint: 'Am Anfang machst du beides selbst. Jede Pflanze mehr macht das Ernten ergiebiger.',
   cookBlocked: 'Lager voll',
   sellBlocked: 'nichts im Lager',
 } as const;
 
+/** Der Regler. Die wichtigste Entscheidung des Spiels, in zwei Worten. */
+export const SEED = {
+  title: 'Ernte',
+  back: 'zurücklegen',
+  sell: 'verkaufen',
+} as const;
+
 /** Warnungen, die oben im Bedienfeld stehen, wenn sie zutreffen. */
 export const WARNINGS = {
-  storageFull: 'Lager voll – die Produktion steht still. Mehr Verkäufer oder ein größeres Lager.',
-  idleWorkers: 'Arbeiter ohne Platz. Sie kochen nichts, bis ein Raum frei ist.',
-  noSellers: 'Niemand verkauft. Die Ware bleibt liegen, bis du es selbst tust oder einen Dealer anstellst.',
-  noWorkers: 'Niemand kocht. Ohne Ware gibt es nichts zu verkaufen.',
+  storageFull: 'Lager voll – die Ernte steht still. Mehr Verkäufer oder ein größeres Lager.',
+  idleWorkers: 'Pflanzen ohne Platz. Sie warten, bis ein Raum frei ist.',
+  noSellers: 'Niemand verkauft. Die Ernte bleibt liegen, bis du es selbst tust oder einen Dealer anstellst.',
+  noWorkers: 'Niemand pflegt die Pflanzen. Ohne Gärtner wächst nichts von allein.',
+  unpaid: 'Die Stromrechnung ist offen – die Pflege leidet. Verkauf etwas.',
+  emptySeats: 'Plätze stehen leer und kosten trotzdem Strom. Leg mehr Ernte zurück.',
 } as const;
 
 /**

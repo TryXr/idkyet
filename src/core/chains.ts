@@ -50,16 +50,27 @@ export function nextMilestone(count: number): number | null {
 /**
  * Einen Zeitschritt wachsen lassen: jede Stufe stellt die darunter ein.
  *
- * Von OBEN nach unten, damit ein frisch eingestellter Koch nicht im selben
- * Tick schon Junkies anschleppt - sonst haengt das Ergebnis an der Tickgroesse
+ * Von OBEN nach unten, damit ein frisch eingestellter Grower nicht im selben
+ * Tick schon Gaertner anschleppt - sonst haengt das Ergebnis an der Tickgroesse
  * und die Simulation waere nicht mehr deterministisch gegenueber dem
  * Offline-Nachlauf, der mit groesseren Schritten rechnet.
+ *
+ * `need` (0 bis 1) ist der BEDARF: eingestellt wird nur, solange es etwas zu
+ * tun gibt - ein Grower sucht Gaertner, solange Pflanzen ungepflegt sind, ein
+ * Strassenboss sucht Dealer, solange Ernte im Lager liegt.
+ *
+ * Ohne diese Bremse wuchsen beide Ketten allein mit der ZEIT weiter, waehrend
+ * der Ertrag an Plaetzen und Pflanzen haengt. Gemessen: 2.5 Mrd Dealer fuer
+ * einen Absatz, der nie ueber 75 k stieg - das Dreizehntausendfache dessen,
+ * was je gebraucht wurde. Die halbe Bedienung war damit ab der dritten Ebene
+ * gegenstandslos.
  */
-export function growChain(units: number[], dt: number): void {
+export function growChain(units: number[], dt: number, need = 1): void {
+  if (need <= 0) return;
   for (let tier = units.length - 2; tier >= 0; tier--) {
     const above = units[tier + 1] ?? 0;
     if (above <= 0) continue;
-    units[tier] = (units[tier] ?? 0) + above * C.hireRate * milestoneMultiplier(above) * dt;
+    units[tier] = (units[tier] ?? 0) + above * C.hireRate * milestoneMultiplier(above) * need * dt;
   }
 }
 

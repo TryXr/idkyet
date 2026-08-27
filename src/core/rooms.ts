@@ -1,13 +1,13 @@
 /**
- * Raeume: sie bieten PLAETZE und bestimmen die QUALITAET.
+ * Raeume: sie bieten PLAETZE fuer Pflanzen und bestimmen die QUALITAET.
  *
- * Qualitaet ist kein eigener Hebel, sondern die Ware je Sekunde, die EIN
- * Arbeiter in diesem Raum schafft (CLAUDE.md). Ein Junkie im Badezimmer bringt
- * wenig, derselbe Junkie im Labor viel - ohne dass es dafuer ein Menue braucht.
+ * Qualitaet ist kein eigener Hebel, sondern die Ernte je Sekunde, die EINE
+ * Pflanze in diesem Raum bringt (CLAUDE.md). Dieselbe Pflanze bringt im
+ * Badezimmer wenig und im Gewaechshaus viel - ohne dass es dafuer ein Menue
+ * braucht. Sichtbar ist sie trotzdem, als Prozentzahl am Lagerbestand.
  *
  * Die Zuteilung passiert automatisch in den besten freien Raum. Der Spieler
- * soll Leute nicht auf Zimmer verteilen; seine einzige Entscheidung ist
- * "mehr Raeume oder mehr Arbeiter?", und die stellt sich von allein.
+ * soll keine Pflanzen auf Zimmer verteilen.
  */
 import { BALANCE, ROOM_NAMES } from './balance.js';
 import { D, type Num } from './numbers.js';
@@ -22,7 +22,7 @@ export const roomName = (tier: number): string => ROOM_NAMES[tier] ?? `Raum ${ti
 export const roomSeats = (tier: number): number =>
   Math.max(1, Math.round(R.seats0 * Math.pow(R.seatsMult, tier)));
 
-/** Ware je Sekunde und Arbeiter in einem Raum dieser Art. */
+/** Ernte je Sekunde und Pflanze in einem Raum dieser Art. */
 export const roomQuality = (tier: number): number =>
   R.quality0 * Math.pow(R.qualityMult, tier);
 
@@ -30,7 +30,7 @@ export const roomQuality = (tier: number): number =>
 export const roomCost = (tier: number, owned: number): Num =>
   D(R.cost0).mul(Math.pow(R.costMult, tier)).mul(Math.pow(R.costGrowth, owned));
 
-/** Was ein Raum dieser Art voll besetzt liefert - fuer Vergleiche in der UI. */
+/** Was ein Raum dieser Art voll bepflanzt liefert - fuer Vergleiche in der UI. */
 export const roomOutput = (tier: number): number => roomSeats(tier) * roomQuality(tier);
 
 /** Alle Plaetze zusammen. */
@@ -41,11 +41,12 @@ export function totalSeats(owned: readonly number[]): number {
 }
 
 /**
- * Ware je Sekunde. Die Arbeiter fuellen immer zuerst die besten Raeume -
- * deshalb von oben nach unten.
+ * Ernte je Sekunde bei voller Pflege. Die Pflanzen stehen immer zuerst in den
+ * besten Raeumen - deshalb von oben nach unten. Mehr Pflanzen als Plaetze
+ * bringen nichts; sie warten (siehe `idlePlants`).
  */
-export function production(workers: number, owned: readonly number[]): number {
-  let left = workers;
+export function production(plants: number, owned: readonly number[]): number {
+  let left = plants;
   let rate = 0;
   for (let tier = owned.length - 1; tier >= 0 && left > 0; tier--) {
     const seats = (owned[tier] ?? 0) * roomSeats(tier);
@@ -57,16 +58,43 @@ export function production(workers: number, owned: readonly number[]): number {
   return rate * BALANCE.cook.workRate;
 }
 
-/** Beste Qualitaet, die gerade zur Verfuegung steht - fuer den Handbetrieb. */
-export function bestQuality(owned: readonly number[]): number {
-  for (let tier = owned.length - 1; tier >= 0; tier--) {
-    if ((owned[tier] ?? 0) > 0) return roomQuality(tier);
+/**
+ * Was alle Raeume zusammen braechten, wenn jeder Platz bepflanzt und gepflegt
+ * waere. Grundlage der Betriebskosten: bezahlt wird der PLATZ, nicht die
+ * Pflanze - ein leerer Raum kostet also trotzdem Strom.
+ */
+export function potential(owned: readonly number[]): number {
+  let sum = 0;
+  for (let tier = 0; tier < owned.length; tier++) {
+    sum += (owned[tier] ?? 0) * roomSeats(tier) * roomQuality(tier);
   }
-  return R.quality0;
+  return sum * BALANCE.cook.workRate;
 }
 
-/** Arbeiter ohne Platz. Sichtbar herumstehende Leute sind das Signal,
- *  dass es Zeit fuer einen weiteren Raum ist. */
-export function idleWorkers(workers: number, owned: readonly number[]): number {
-  return Math.max(0, workers - totalSeats(owned));
+/**
+ * Der Teil des Potenzials, der wirklich abgerechnet wird: alles ausser dem
+ * ersten Badezimmer. Die Freigrenze ist keine Balance-Feinheit, sondern der
+ * Startzustand - siehe `Sim.upkeepRate`.
+ */
+export function billedPotential(owned: readonly number[]): number {
+  const free = roomSeats(0) * roomQuality(0) * BALANCE.cook.workRate;
+  return Math.max(0, potential(owned) - free);
+}
+
+/** Beste Raumstufe, die schon steht. Bestimmt Handbetrieb und Stecklingspreis. */
+export function bestTier(owned: readonly number[]): number {
+  for (let tier = owned.length - 1; tier >= 0; tier--) {
+    if ((owned[tier] ?? 0) > 0) return tier;
+  }
+  return 0;
+}
+
+/** Beste Qualitaet, die gerade zur Verfuegung steht. */
+export function bestQuality(owned: readonly number[]): number {
+  return roomQuality(bestTier(owned));
+}
+
+/** Pflanzen ohne Platz. Sie warten sichtbar - das Signal fuer den naechsten Raum. */
+export function idlePlants(plants: number, owned: readonly number[]): number {
+  return Math.max(0, plants - totalSeats(owned));
 }

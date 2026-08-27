@@ -18,8 +18,8 @@ import {
 } from '../core/chains.js';
 import { roomName, roomQuality, roomSeats } from '../core/rooms.js';
 import { fraction, missing, type Territory } from '../core/territory.js';
-import { levelName, maxLevel } from '../core/world.js';
-import { ENDING, HANDS, HINTS, WARNINGS } from '../content/texts.js';
+import { levelName, levelPrice, maxLevel } from '../core/world.js';
+import { ENDING, HANDS, HINTS, SEED, WARNINGS } from '../content/texts.js';
 import type { Sim } from '../core/sim.js';
 
 // --- Aktionen -------------------------------------------------------------
@@ -32,6 +32,7 @@ export type UiAction =
   | { kind: 'unit'; chain: ChainKey; tier: number; count: number }
   | { kind: 'room'; tier: number; count: number }
   | { kind: 'storage' }
+  | { kind: 'seed'; share: number }
   | { kind: 'target'; id: number | null };
 
 export function applyAction(sim: Sim, action: UiAction): boolean {
@@ -41,6 +42,7 @@ export function applyAction(sim: Sim, action: UiAction): boolean {
     case 'unit':    return sim.buyUnits(action.chain, action.tier, action.count) > 0;
     case 'room':    return sim.buyRooms(action.tier, action.count) > 0;
     case 'storage': return sim.buyStorage();
+    case 'seed':    sim.setSeedShare(action.share); return true;
     case 'target':  sim.setTarget(action.id); return true;
   }
 }
@@ -95,6 +97,21 @@ export interface TargetView {
   etaText: string;
 }
 
+/**
+ * Der Regler. Ein einziges Bedienelement, das keinem der Abschnitte gleicht -
+ * deshalb bekommt er eine eigene Form statt einer erzwungenen Kaufzeile.
+ */
+export interface SeedView {
+  title: string;
+  hint: string;
+  /** Anteil, der zurueckgelegt wird, 0 bis 1. */
+  share: number;
+  backLabel: string;
+  sellLabel: string;
+  /** Was gerade daraus wird, in Worten. */
+  facts: string;
+}
+
 export interface Ending {
   title: string;
   lead: string;
@@ -118,6 +135,7 @@ export interface ViewModel {
   };
   warnings: string[];
   meters: Meter[];
+  seed: SeedView;
   target: TargetView | null;
   sections: Section[];
   facts: Array<[string, string]>;
@@ -166,8 +184,8 @@ function chainSection(sim: Sim, chain: ChainKey): Section {
     // Was eine weitere Einheit bringt: Stufe 0 arbeitet, alle darueber stellen ein.
     const facts = tier === 0
       ? (chain === 'cook'
-        ? 'kocht so gut, wie sein Raum es hergibt'
-        : `setzt ${fmt(BALANCE.sell.sellRate)} Ware/s ab`)
+        ? `pflegt ${fmt(BALANCE.care.perGardener)} Ernte/s`
+        : `setzt ${fmt(BALANCE.sell.sellRate)} Ernte/s ab`)
       : `stellt ${unitName(chain, tier - 1)} ein`;
 
     rows.push({
@@ -186,7 +204,7 @@ function chainSection(sim: Sim, chain: ChainKey): Section {
 
   return {
     key: chain,
-    title: chain === 'cook' ? 'Kochen' : 'Verkaufen',
+    title: chain === 'cook' ? 'Pflege' : 'Verkaufen',
     hint: chain === 'cook' ? HINTS.cook : HINTS.sell,
     rows,
   };
@@ -213,7 +231,7 @@ function roomSection(sim: Sim): Section {
       key: `room-${tier}`,
       name: roomName(tier),
       count: count > 0 ? `${count}×` : '',
-      facts: `${roomSeats(tier)} Plätze · ${fmt(roomQuality(tier))} Ware/s je Arbeiter`,
+      facts: `${roomSeats(tier)} Plätze · ${fmt(roomQuality(tier))} Ernte/s je Pflanze`,
       note: count > 0 ? `${count * roomSeats(tier)} Plätze insgesamt` : null,
       waitText: whenText(sim.secondsUntil(sim.roomCost(tier))),
       highlight: idle > 0 && tier === sim.unlockedRooms() - 2,
@@ -238,7 +256,7 @@ function storageSection(sim: Sim): Section {
       key: 'storage',
       name: 'Lager vergrößern',
       count: `Stufe ${sim.storageLevel + 1}`,
-      facts: `${fmt(sim.storage)} / ${fmt(sim.storageCap())} Ware · ${fmtTime(seconds)} Puffer`,
+      facts: `${fmt(sim.storage)} / ${fmt(sim.storageCap())} Ernte · ${fmtTime(seconds)} Puffer`,
       note: null,
       waitText: whenText(sim.secondsUntil(cost)),
       highlight: false,
@@ -258,10 +276,32 @@ function targetView(sim: Sim, territory: Territory | null): TargetView | null {
     name: territory.name,
     fraction: fraction(territory),
     fractionText: `${(fraction(territory) * 100).toFixed(1)} % versorgt`,
-    missingText: `noch ${fmt(rest)} Ware`,
-    priceText: `${fmt(territory.price)} je Ware`,
+    missingText: `noch ${fmt(rest)} Ernte`,
+    priceText: `${fmt(territory.price)} je Gramm`,
     rentText: `${fmt(territory.rent)} / s Rente`,
     etaText: rate > 0 ? whenText(rest / rate) : 'kein Nachschub',
+  };
+}
+
+/**
+ * Der Regler und was er gerade anrichtet. Die Beschriftung nennt beide Seiten
+ * in denselben Einheiten - Pflanzen gegen Bargeld -, denn genau das ist die
+ * Abwaegung, und sie soll nicht im Kopf ausgerechnet werden muessen.
+ */
+function seedView(sim: Sim): SeedView {
+  const harvest = sim.output();
+  const back = harvest * sim.seedShare;
+  const perMinute = back > 0 ? (back * 60) / sim.seedCost() : 0;
+  const cash = (harvest - back) * levelPrice(sim.level);
+  return {
+    title: SEED.title,
+    hint: HINTS.seed,
+    share: sim.seedShare,
+    backLabel: SEED.back,
+    sellLabel: SEED.sell,
+    facts: harvest > 0
+      ? `${fmt(perMinute)} Pflanzen/min · ${fmt(cash)} / s`
+      : 'noch keine Ernte',
   };
 }
 
@@ -285,7 +325,8 @@ function endingPart(sim: Sim): Ending | null {
       ['Gebiete übernommen', `${(maxLevel() + 1) * BALANCE.levels.perLevel}`],
       ['Räume gebaut', `${rooms}`],
       ['Größter Raum', roomName(biggest)],
-      ['Arbeiter', String(Math.floor(sim.cook[0] ?? 0))],
+      ['Pflanzen', fmt(sim.plants)],
+      ['Gärtner', String(Math.floor(sim.cook[0] ?? 0))],
       ['Verkäufer', String(Math.floor(sim.sell[0] ?? 0))],
       ['Rente', `${fmt(sim.rentPerSecond())} / s`],
       ['Umsatz insgesamt', fmt(sim.lifetime)],
@@ -309,10 +350,18 @@ export function buildViewModel(sim: Sim): ViewModel {
 
   const warnings: string[] = [];
   if (!sim.finished) {
+    if (sim.powerShare < 0.999) warnings.push(WARNINGS.unpaid);
     if (stalled) warnings.push(WARNINGS.storageFull);
     if (idle > 0) warnings.push(WARNINGS.idleWorkers);
+    // Erst warnen, wenn wirklich etwas brachliegt - und erst, wenn der Betrieb
+    // ueberhaupt laeuft. In der ersten Minute steht im Badezimmer eine Pflanze
+    // auf zwei Plaetzen; das ist der Startzustand, kein Fehler, und eine
+    // Warnung darauf waere das erste, was ein Neuling zu lesen bekommt.
+    if (!handsVisible && sim.emptySeats() > sim.seats() * 0.4) {
+      warnings.push(WARNINGS.emptySeats);
+    }
     if (absatz <= 0 && sim.storage > 0) warnings.push(WARNINGS.noSellers);
-    if (output <= 0) warnings.push(WARNINGS.noWorkers);
+    if ((sim.cook[0] ?? 0) < 1 && !handsVisible) warnings.push(WARNINGS.noWorkers);
   }
 
   return {
@@ -328,14 +377,15 @@ export function buildViewModel(sim: Sim): ViewModel {
         label: HANDS.cook,
         action: { kind: 'cook' },
         cost: sim.cash,
-        costText: `+${fmt(BALANCE.manual.cookPortion * roomQuality(0))} Ware`,
+        costText: `+${fmt(BALANCE.manual.cookPortion * roomQuality(0) *
+          Math.max(1, Math.min(sim.plants, sim.seats())))} Ernte`,
         enabled: sim.storage < cap,
       },
       sell: {
         label: HANDS.sell,
         action: { kind: 'sell' },
         cost: sim.cash,
-        costText: sim.storage > 0 ? `${fmt(sim.storage)} Ware` : HANDS.sellBlocked,
+        costText: sim.storage > 0 ? `${fmt(sim.storage)} Ernte` : HANDS.sellBlocked,
         enabled: sim.storage > 0 && target !== null,
       },
     },
@@ -349,20 +399,29 @@ export function buildViewModel(sim: Sim): ViewModel {
         hint: 'Alle Gebiete dieser Ebene, dann zoomt die Karte heraus.',
       },
       {
+        label: 'Pflanzen',
+        value: `${fmt(sim.plants)} auf ${sim.seats()} Plätzen` +
+          (sim.seedlings >= 0.05 ? ` · ${fmt(sim.seedlings)} reifen` : ''),
+        fill: sim.seats() > 0 ? Math.min(1, sim.plants / sim.seats()) : 0,
+        warn: idle > 0,
+        hint: 'Pflanzen kommen nur aus der eigenen Ernte. Leere Plätze kosten trotzdem Strom.',
+      },
+      {
         label: 'Lager',
-        value: `${fmt(sim.storage)} / ${fmt(cap)}`,
+        value: `${fmt(sim.storage)} / ${fmt(cap)} · Güte ${(sim.grade() * 100).toFixed(0)} %`,
         fill: cap > 0 ? Math.min(1, sim.storage / cap) : 0,
         warn: stalled,
-        hint: 'Volles Lager stoppt die Produktion.',
+        hint: 'Volles Lager stoppt die Ernte. Die Güte sagt, wie gut deine Pflanzen stehen.',
       },
       {
         label: 'Durchsatz',
-        value: `${fmt(output)} gekocht · ${fmt(absatz)} verkauft je s`,
+        value: `${fmt(output)} geerntet · ${fmt(absatz)} verkauft je s`,
         fill: absatz > 0 ? Math.min(1, output / absatz) : 0,
         warn: output <= 0 || absatz <= 0,
         hint: 'Die kleinere der beiden Zahlen bestimmt, wie schnell es vorangeht.',
       },
     ],
+    seed: seedView(sim),
     target: targetView(sim, target),
     sections: [
       chainSection(sim, 'cook'),
@@ -371,8 +430,9 @@ export function buildViewModel(sim: Sim): ViewModel {
       storageSection(sim),
     ],
     facts: [
-      ['Arbeiter', `${Math.floor(sim.cook[0] ?? 0)} auf ${sim.seats()} Plätzen`],
+      ['Gärtner', `${Math.floor(sim.cook[0] ?? 0)} · Pflege ${(sim.care() * 100).toFixed(0)} %`],
       ['Verkäufer', String(Math.floor(sim.sell[0] ?? 0))],
+      ['Strom', `${fmt(sim.upkeepRate())} / s`],
       ['Rente', `${fmt(sim.rentPerSecond())} / s`],
       ['Spielzeit', fmtTime(sim.time)],
     ],

@@ -3,8 +3,8 @@
  * Begruendung und Herleitung jeder Zahl steht in BALANCING.md.
  *
  * Das Spiel hat zwei Ketten und eine Landkarte:
- *   KOCHEN       Arbeiter in Raeumen machen Ware.
- *   VERKAUFEN    Verkaeufer setzen sie in einem Gebiet ab.
+ *   ZIEHEN       Pflanzen in Raeumen bringen Ernte, Gaertner pflegen sie.
+ *   VERKAUFEN    Verkaeufer setzen die Ernte in einem Gebiet ab.
  *   UEBERNEHMEN  Ein volles Gebiet gehoert dir und zahlt Rente.
  *
  * Raeume und Ketten sind mit FORMELN beschrieben, nicht als Tabelle von Hand.
@@ -20,7 +20,7 @@ export const BALANCE = {
    */
   chain: {
     /** Einheiten je Sekunde, die eine Einheit der Stufe darueber einstellt. */
-    hireRate: 0.0004,
+    hireRate: 0.02,
     /** Jede weitere Einheit derselben Art kostet so viel mehr. */
     costGrowth: 1.12,
     /** Aufschlag je Kettenstufe. */
@@ -32,14 +32,68 @@ export const BALANCE = {
 
   /** Was Stufe 0 der jeweiligen Kette leistet. */
   cook: {
-    /** Ein Junkie schafft die Qualitaet seines Raumes mal diesen Faktor. */
+    /** Grundfaktor auf den Ertrag. Bleibt bei 1, ist nur ein Stellschraubchen. */
     workRate: 1,
     costBase: 8,
   },
   sell: {
-    /** Ware je Sekunde, die ein Dealer absetzt. */
+    /** Ernte je Sekunde, die ein Dealer absetzt. */
     sellRate: 0.4,
     costBase: 14,
+  },
+
+  /**
+   * PFLANZEN. Der Kreislauf des Spiels: die Ernte hat zwei Verwendungen, und
+   * die zweite (zuruecklegen) ist der einzige Weg zu mehr Pflanzen. Bargeld
+   * kauft PLATZ und PFLEGE, aber niemals Pflanzen.
+   */
+  plant: {
+    /** Ernte je neuem Steckling im Badezimmer. */
+    seedCost0: 6,
+    /**
+     * ...und je Raumstufe teurer. Bewusst gleich `rooms.qualityMult`: dadurch
+     * dauert das Fuellen eines neuen Raumes ueberall gleich lange, und der
+     * Rhythmus "Raum kaufen -> fuellen -> abkassieren" bleibt ueber alle acht
+     * Ebenen derselbe.
+     */
+    seedCostMult: 1.55,
+    /** Wie lange ein Steckling bis zur ersten Ernte braucht. */
+    growSeconds: 90,
+    /** Startstellung des Reglers: erst einmal halbe-halbe. */
+    seedShare0: 0.5,
+  },
+
+  /**
+   * PFLEGE. Ein Gaertner versorgt so viele Pflanzen - aber die Kurve ist weich
+   * (1 - e^-x), nicht hart abgeschnitten. Ein hartes Minimum waere wieder nur
+   * ein Thermostat ("kauf die kleinere Seite"); weich heisst, dass mehr Pflege
+   * IMMER etwas bringt und man wirklich abwaegen muss (TIEFE.md, Befund 1.2).
+   */
+  care: {
+    /**
+     * Ernte je Sekunde, die ein Gaertner betreuen kann.
+     *
+     * Bezugsgroesse ist ausdruecklich der ERTRAG, nicht die Stueckzahl: eine
+     * Pflanze im Orbitalgewaechshaus macht mehr Arbeit als eine im Badezimmer.
+     * Anders herum saettigte die Pflege nach kurzer Zeit dauerhaft bei 100 %,
+     * und die ganze Anbaukette war ab der dritten Ebene Dekoration - gemessen
+     * 1.09e8 Gaertner fuer 30 k Pflanzen.
+     *
+     * 0.075 = 1.5 Pflanzen im Badezimmer. Der Anfang bleibt damit unveraendert.
+     */
+    perGardener: 0.075,
+    /** Unbezahlte Rechnungen druecken die Pflege bis hierhin, nie tiefer. */
+    floor: 0.2,
+  },
+
+  /**
+   * BETRIEBSKOSTEN. Strom und Duenger laufen fuer jeden PLATZ, ob eine Pflanze
+   * darin steht oder nicht. Deshalb blutet ein leerer Raum - und deshalb ist
+   * ein Raumkauf eine Entscheidung mit Nachspiel statt eines Listeneintrags.
+   * Anteil an dem, was ein voll besetzter Raum einbringen wuerde.
+   */
+  upkeep: {
+    share: 0.15,
   },
 
   /**
@@ -59,9 +113,14 @@ export const BALANCE = {
 
   /** Ein Klick von Hand - nur die erste Minute, danach uebernehmen Helfer. */
   manual: {
-    /** Ware je Klick auf "kochen", als Vielfaches der besten Raumqualitaet. */
+    /**
+     * Ernte je Klick, als Vielfaches aus Raumqualitaet UND Pflanzenzahl.
+     * Dass es mit den Pflanzen mitwaechst, ist wichtig: sonst waere in der
+     * ersten Minute, in der noch kein Gaertner da ist, das Zuruecklegen reiner
+     * Verlust - und der Spieler lernte die Kernentscheidung falsch.
+     */
     cookPortion: 8,
-    /** Ware je Klick auf "verkaufen", als Vielfaches der Dealer-Leistung. */
+    /** Ernte je Klick auf "verkaufen", als Vielfaches der Dealer-Leistung. */
     sellPortion: 12,
   },
 
@@ -69,7 +128,7 @@ export const BALANCE = {
   levels: {
     /** Gesamtbedarf aller Gebiete der Stufe 0, in Ware. */
     demand0: 45,
-    demandMult: 15,
+    demandMult: 13,
     /**
      * Der Zuwachs je Stufe KLINGT AB. Frueh soll der Bedarf schneller wachsen
      * als der Durchsatz (dadurch werden die Stufen laenger und gewichtiger),
@@ -112,23 +171,28 @@ export const BALANCE = {
  * an, und jede weitere waere nur eine Zahl mehr ohne neue Entscheidung.
  */
 export const COOK_CHAIN: ReadonlyArray<string> = [
-  'Junkie', 'Koch', 'Chemiker', 'Professor',
+  'Gärtner', 'Grower', 'Botaniker', 'Professor',
 ];
 
+/** Nach oben hin wird die Kette immer legaler. Niemand kommentiert es. */
 export const SELL_CHAIN: ReadonlyArray<string> = [
-  'Dealer', 'Straßenboss', 'Kartellchef', 'Pate',
+  'Dealer', 'Straßenboss', 'Großhändler', 'Konzernchef',
 ];
 
 /**
  * Die Raeume. Nur die Namen stehen hier - Plaetze, Qualitaet und Preis kommen
- * aus den Formeln oben. Die Reihe ist zugleich die Gag-Kurve des Spiels:
- * Badezimmer bis Asteroiden-Cluster, und niemand kommentiert es.
+ * aus den Formeln oben. Die Reihe ist zugleich die Fortschrittsanzeige des
+ * Spiels und seine Gag-Kurve: vom eigenen Badezimmer bis zum
+ * Asteroiden-Gewaechshaus, und niemand kommentiert es.
+ *
+ * ZWOELF STUFEN, nicht fuenfzehn. Gemessen wurde im Durchlauf nie mehr als die
+ * zwoelfte gekauft - die letzten drei waren totes Inventar. Eine Option, die
+ * nie richtig ist, war nie eine Option (TIEFE.md, Befund 1.6).
  */
 export const ROOM_NAMES: ReadonlyArray<string> = [
-  'Badezimmer', 'Garage', 'Wohnwagen', 'Kellergeschoss', 'Lagerhalle',
-  'Gewerbepark', 'Stillgelegte Fabrik', 'Farm / Gewächshaus', 'Frachtschiff',
-  'Bergwerk', 'Pharmawerk', 'Raffinerie', 'Orbitalstation', 'Mondbasis',
-  'Asteroiden-Cluster',
+  'Badezimmer', 'Kleiderschrank', 'Dachboden', 'Kellergeschoss', 'Garage',
+  'Gartenlaube', 'Gewächshaus', 'Scheune', 'Lagerhalle', 'Plantage',
+  'Orbitalgewächshaus', 'Asteroiden-Gewächshaus',
 ];
 
 /** Die Zoomstufen. Namen der Gebiete stehen in content/places.ts. */

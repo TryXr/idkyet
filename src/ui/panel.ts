@@ -52,6 +52,10 @@ export class Panel {
   private sellButton = el('button', 'hand');
   private warnings = el('div', 'warnings');
   private meterBox = el('div', 'meters');
+  private seedBox = el('section', 'card seed');
+  private seedLabel = el('div', 'seed-label');
+  private seedInput = el('input', 'seed-range');
+  private seedFacts = el('div', 'row-facts');
   private targetBox = el('section', 'card target');
   private targetName = el('div', 'target-name');
   private targetBar = el('div', 'bar-fill');
@@ -83,15 +87,26 @@ export class Panel {
     handButtons.append(this.button(this.cookButton), this.button(this.sellButton));
     this.handsBox.append(handButtons, this.handsHint);
 
+    // Der Regler. Kein Kaufknopf, also auch keine erzwungene Kaufzeile - er
+    // bekommt seine eigene Form, damit er nicht wie eine Anschaffung aussieht.
+    this.seedInput.type = 'range';
+    this.seedInput.min = '0';
+    this.seedInput.max = '100';
+    this.seedInput.step = '5';
+    this.seedInput.addEventListener('input', () => {
+      this.onAction({ kind: 'seed', share: Number(this.seedInput.value) / 100 });
+    });
+    this.seedBox.append(this.seedLabel, this.seedInput, this.seedFacts);
+
     this.targetBox.appendChild(el('h2', '', 'Ziel'));
     const bar = el('div', 'bar');
     bar.appendChild(this.targetBar);
     this.targetBox.append(this.targetName, bar, this.targetFacts, this.targetEta);
 
     this.root.append(head, this.handsBox, this.warnings, this.meterBox,
-      this.targetBox, this.sectionBox, this.facts);
+      this.seedBox, this.targetBox, this.sectionBox, this.facts);
 
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 4; i++) {  // Ebene, Pflanzen, Lager, Durchsatz
       const root = el('div', 'meter');
       const line = el('div', 'meter-head');
       const label = el('span', 'meter-label');
@@ -115,6 +130,7 @@ export class Panel {
     this.setHands(vm);
     this.setWarnings(vm.warnings);
     vm.meters.forEach((meter, i) => this.setMeter(this.meters[i], meter));
+    this.setSeed(vm);
     this.setTarget(vm);
     for (const section of vm.sections) this.setSection(section);
     this.setFacts(vm);
@@ -142,6 +158,17 @@ export class Panel {
     els.value.textContent = meter.value;
     els.bar.style.width = `${Math.round(Math.min(1, meter.fill) * 100)}%`;
     els.root.classList.toggle('warn', meter.warn);
+  }
+
+  private setSeed(vm: ViewModel): void {
+    const percent = Math.round(vm.seed.share * 100);
+    this.seedBox.title = vm.seed.hint;
+    this.seedLabel.textContent =
+      `${vm.seed.title}: ${percent} % ${vm.seed.backLabel}, ${100 - percent} % ${vm.seed.sellLabel}`;
+    // Nur schreiben, wenn der Wert wirklich abweicht - sonst springt der
+    // Schieber unter dem Finger zurueck, waehrend man ihn noch zieht.
+    if (Number(this.seedInput.value) !== percent) this.seedInput.value = String(percent);
+    this.seedFacts.textContent = vm.seed.facts;
   }
 
   private setTarget(vm: ViewModel): void {

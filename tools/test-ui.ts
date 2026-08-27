@@ -104,8 +104,11 @@ while (!sim.finished && sim.time < 40 * 3600) {
   samples++;
 
   const offered = options(vm);
+  // Die Haende zaehlen mit, solange sie da sind: in der ersten Minute IST
+  // Klicken das, was es zu tun gibt (CLAUDE.md, erste 60 Sekunden).
   const reachable = offered.some(o => o.enabled) ||
-    offered.some(o => Number.isFinite(sim.secondsUntil(o.cost)));
+    offered.some(o => Number.isFinite(sim.secondsUntil(o.cost))) ||
+    (vm.hands.visible && (vm.hands.cook.enabled || vm.hands.sell.enabled));
   if (!reachable) { deadEnds++; if (!deadEndAt) deadEndAt = levelName(sim.level); }
   if (offered.some(o => !o.costText) || vm.sections.some(s => s.rows.some(r => !r.waitText))) {
     missingText++;
@@ -148,11 +151,14 @@ console.log('\n=== Stimmen ===');
   const sloppyDirector = new VoiceDirector(0);
   sloppy.events.on(event => sloppyDirector.handle(event));
   while (sloppy.level < 1 && sloppy.time < 3600) { sloppy.tick(); decide(sloppy); }
-  // Ab hier wird nur noch gekocht: viele Arbeiter, viele Raeume, kein Dealer
-  // mehr. Genau so laeuft ein Anfaenger in ein volles Lager.
+  // Ab hier wird nur noch angebaut: viele Raeume, viele Gaertner, viele
+  // Pflanzen - und alles wird verkauft statt zurueckgelegt, obwohl viel zu
+  // wenige Dealer da sind. Genau so laeuft ein Anfaenger in ein volles Lager.
   sloppy.cash = sloppy.cash.add(1e6);
   sloppy.buyRooms(1, 20);
   sloppy.buyUnits('cook', 0, 60);
+  sloppy.plants = sloppy.seats();
+  sloppy.setSeedShare(0);
   for (let t = 0; t < 1800; t++) sloppy.tick();
 
   const unseen = VOICE_LINES.filter(

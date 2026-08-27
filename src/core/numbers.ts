@@ -13,6 +13,23 @@ export type Num = Decimal;
 export const D = (v: number | string | Decimal): Num => new Decimal(v);
 export const ZERO: Num = new Decimal(0);
 
+/**
+ * Verlustfrei speichern: als Paar aus Mantisse und Exponent, nicht als Text.
+ *
+ * Der Umweg ueber eine Zeichenkette ist NICHT verlustfrei: `new Decimal(text)`
+ * rechnet die Mantisse neu aus und trifft dabei das letzte Bit nicht immer.
+ * Ein geladener Stand war dadurch um ein ULP verschoben - im Spiel unsichtbar,
+ * fuer den Abgleich "identisch weitergespielt" aber toedlich, und damit auch
+ * fuer den Offline-Fortschritt, der genau darauf beruht.
+ */
+export type StoredNum = [mantissa: number, exponent: number];
+
+export const toStored = (v: Num): StoredNum => [v.mantissa, v.exponent];
+
+export const fromStored = (v: StoredNum | string): Num =>
+  typeof v === 'string' ? new Decimal(v)
+    : Decimal.fromMantissaExponent_noNormalize(v[0], v[1]);
+
 /** Kompakte Ausgabe fuer Konsole und UI. */
 export function fmt(v: Num | number, digits = 2): string {
   const d = typeof v === 'number' ? new Decimal(v) : v;

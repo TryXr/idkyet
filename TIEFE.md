@@ -10,6 +10,10 @@ bekommt eine zweite Verwendung. Beides steht in CLAUDE.md, die Begruendung in
 Abschnitt 2a und E1 hier. Der Befund in Abschnitt 1 ist davon unberuehrt - er
 beschreibt das Modell, nicht das Thema.
 
+STAND 2026-08-27: Schritt 0 (Thema) und Schritt 1 (E1, Pflanzen-Kreislauf und
+Betriebskosten) sind GEBAUT und durchgemessen. Was dabei herauskam - auch das,
+was nicht aufging - steht in BALANCING.md. E2, E3 und E4 stehen noch aus.
+
 Dieses Dokument ergaenzt CLAUDE.md, es ersetzt es nicht.
 
 
